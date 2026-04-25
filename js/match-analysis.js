@@ -222,36 +222,71 @@ function renderRadarChart(match) {
     });
 }
 
-function renderAIRecommendations(match) {
+async function renderAIRecommendations(match) {
     const panel = document.getElementById('ai-recommendations');
     if (!panel) return;
-    const recs = [];
 
-    if (match.possession < 45) {
-        recs.push({ type: 'danger', icon: '⚠️', title: 'Posesie scăzută', msg: `Posesia de ${match.possession}% indică dominanța adversarului. Recomandare: presing mai agresiv și rotație rapidă.` });
-    }
-    if (match.passAcc < 78) {
-        recs.push({ type: 'warning', icon: '📉', title: 'Acuratețe pase sub medie', msg: `${match.passAcc}% acuratețe — sub pragul optim de 80%. Antrenament pe pase sub presing recomandat.` });
-    }
-    if (match.shotsOT < match.shots * 0.45) {
-        recs.push({ type: 'warning', icon: '🎯', title: 'Eficiență la finalizare redusă', msg: `Doar ${match.shotsOT} din ${match.shots} șuturi pe poartă (${Math.round(match.shotsOT / match.shots * 100)}%). Exerciții de finalizare prioritare.` });
-    }
-    if (match.possession >= 50) {
-        recs.push({ type: 'success', icon: '✅', title: 'Dominanță posesie excelentă', msg: `${match.possession}% posesie — U Cluj controlează ritmul. Continuați să exploatați spațiile libere.` });
-    }
-    if (match.passAcc >= 82) {
-        recs.push({ type: 'success', icon: '🔗', title: 'Circuit de pase solid', msg: `Acuratețe de ${match.passAcc}% confirmă circulația eficientă a mingii. Modelul de triangulare funcționează.` });
-    }
-    recs.push({ type: 'info', icon: '💡', title: 'Line-Breakers top', msg: `Hoban și Munteanu generează cele mai multe pase în treimea adversă — menținerea acestui pattern crește șansele de gol.` });
-    if (match.yellowCards >= 2) {
-        recs.push({ type: 'danger', icon: '🟨', title: `${match.yellowCards} cartonașe galbene`, msg: 'Disciplina tactică necesită îmbunătățire. Faulturile repetate expun echipa la superioritate numerică adversă.' });
-    }
+    // Show a loading state
+    panel.innerHTML = `
+      <div style="color:var(--text-3); font-size:13px; text-align:center; padding: 20px;">
+        <svg style="animation: spin 1s linear infinite; height: 24px; width: 24px; color: var(--gold);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <br/><br/>
+        Procesare Insight-uri AI & Generare Tactică Gemini...
+      </div>
+      <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+    `;
 
-    panel.innerHTML = recs.map(r => `
-    <div class="alert-item ${r.type}">
-      <span class="alert-icon">${r.icon}</span>
-      <div class="alert-content"><strong>${r.title}</strong>${r.msg}</div>
-    </div>`).join('');
+    try {
+        const statsPayload = {
+            "avg_possession": match.possession,
+            "total_passes": match.passes,
+            "percent_passAcc": match.passAcc,
+            "total_shots": match.shots,
+            "total_shotsOnTarget": match.shotsOT,
+            "total_distance": match.distanceCovered
+        };
+
+        const response = await fetch('http://127.0.0.1:8000/api/v1/diagnostics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stats: statsPayload })
+        });
+
+        if (!response.ok) throw new Error('API Response Error');
+        const data = await response.json();
+
+        const recs = [];
+        
+        if (data.tactical_advice) {
+            recs.push({ type: 'success', icon: '🤖', title: 'Digital Coach (Gemini)', msg: data.tactical_advice });
+        }
+        
+        if (data.top_strengths && data.top_strengths.length > 0) {
+            const sHtml = data.top_strengths.map(s => `<li>${s.feature} <br><span style="color:#22c55e">(Impact +${s.impact.toFixed(3)})</span></li>`).join('');
+            recs.push({ type: 'info', icon: '⚡', title: 'Top Puncte Forte (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${sHtml}</ul>` });
+        }
+
+        if (data.top_weaknesses && data.top_weaknesses.length > 0) {
+            const wHtml = data.top_weaknesses.map(s => `<li>${s.feature} <br><span style="color:#ef4444">(Impact ${s.impact.toFixed(3)})</span></li>`).join('');
+            recs.push({ type: 'danger', icon: '⚠️', title: 'Top Puncte Slabe (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${wHtml}</ul>` });
+        }
+
+        panel.innerHTML = recs.map(r => `
+        <div class="alert-item ${r.type}">
+          <span class="alert-icon">${r.icon}</span>
+          <div class="alert-content"><strong>${r.title}</strong>${r.msg}</div>
+        </div>`).join('');
+        
+    } catch (error) {
+        panel.innerHTML = `
+        <div class="alert-item danger">
+          <span class="alert-icon">❌</span>
+          <div class="alert-content"><strong>Eroare Conexiune</strong>Nu se poate accesa Backend-ul pe port 8000. Startați serverul Uvicorn!</div>
+        </div>`;
+    }
 }
 
 function renderEfficiencyScores() {
