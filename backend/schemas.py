@@ -23,3 +23,52 @@ class AnomalyResult(BaseModel):
 
 class AnomalyResponse(BaseModel):
     anomalies: List[AnomalyResult]
+
+
+class MatchData(BaseModel):
+    id: str
+    label: str
+    opponent: str
+    score: str
+    date: str
+    possession: float
+    shots: int
+    shotsOT: int
+    passes: int
+    passAcc: float
+    corners: int
+    fouls: int
+    yellowCards: int
+    redCards: int
+    distanceCovered: float
+    topSpeed: float
+
+
+class MatchListResponse(BaseModel):
+    matches: List[MatchData]
+
+
+class PlayerInsightResponse(BaseModel):
+    squad: List[Dict[str, Any]]
+    top_strengths: List[FeatureImpact]
+    top_weaknesses: List[FeatureImpact]
+
+
+class MatchInsightResponse(BaseModel):
+    top_strengths: List[FeatureImpact]
+    top_weaknesses: List[FeatureImpact]
+
+
+class MatchPlayerStats(BaseModel):
+    player_id: int
+    name: str
+    pos: str
+    goals: float
+    assists: float
+    passes: float
+    passes_final_third: float
+    minutes_on_field: float
+
+
+class MatchPlayersResponse(BaseModel):
+    players: List[MatchPlayerStats]

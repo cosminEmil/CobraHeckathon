@@ -5,7 +5,7 @@
 function renderPlayers() {
   const grid = document.getElementById('players-grid');
   if (!grid) return;
-  grid.innerHTML = UCJ_SQUAD.map(p => {
+  grid.innerHTML = (window.UCJ_SQUAD || []).map(p => {
     const eff = +(p.goals * 10 + p.assists * 8 + p.passes * 0.1).toFixed(0);
     return `
     <div class="player-card" onclick="openPlayerModal(${p.id})">
@@ -22,7 +22,7 @@ function renderPlayers() {
 }
 
 function openPlayerModal(id) {
-  const p = UCJ_SQUAD.find(x => x.id === id);
+  const p = (window.UCJ_SQUAD || []).find(x => x.id === id);
   if (!p) return;
   const eff = +(p.goals * 10 + p.assists * 8 + p.passes * 0.1).toFixed(1);
   const modal = document.getElementById('player-modal');

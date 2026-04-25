@@ -406,10 +406,23 @@
         </div>
 
         <!-- Match selector -->
-        <div class="match-selector" id="match-chips"></div>
+        <div class="card matches-dropdown-card">
+          <button type="button" id="match-list-toggle" class="match-list-toggle" onclick="toggleMatchList()">
+            <span>Meciuri disponibile</span>
+            <span id="match-list-arrow" class="match-list-arrow">▾</span>
+          </button>
+          <div id="match-list-panel" class="match-list-panel">
+            <div class="match-selector" id="match-chips"></div>
+          </div>
+        </div>
 
         <!-- Match header score -->
         <div class="match-header" id="analysis-match-header"></div>
+
+        <div class="card ai-hero-card">
+          <div class="card-title"><span class="icon">🤖</span> Recomandări AI pentru meciul selectat</div>
+          <div class="alert-panel ai-hero-panel" id="ai-recommendations"></div>
+        </div>
 
         <!-- Quick stats -->
         <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px">
@@ -445,11 +458,6 @@
             <div class="card" style="text-align:center">
               <div class="card-title" style="justify-content:center"><span class="icon">🏆</span> Scor Performanță</div>
               <div id="perf-score-ring"></div>
-            </div>
-            <!-- AI Recommendations -->
-            <div class="card" style="flex:1">
-              <div class="card-title"><span class="icon">🤖</span> Recomandări AI</div>
-              <div class="alert-panel" id="ai-recommendations"></div>
             </div>
           </div>
         </div>
