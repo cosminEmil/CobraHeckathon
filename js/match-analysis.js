@@ -244,18 +244,20 @@ async function renderAIRecommendations(match) {
     `;
 
     try {
-        let matchInsights = matchInsightsCache[match.id];
-        if (!matchInsights) {
-            const insightsResponse = await fetch(`http://127.0.0.1:8000/api/v1/matches/ucluj/${encodeURIComponent(match.id)}/insights`);
-            if (insightsResponse.ok) {
-                matchInsights = await insightsResponse.json();
-                matchInsightsCache[match.id] = matchInsights;
-            } else {
-                matchInsights = { top_strengths: [], top_weaknesses: [] };
-            }
-        }
+        const statsPayload = {
+            "avg_possession": match.possession,
+            "total_passes": match.passes,
+            "percent_passAcc": match.passAcc,
+            "total_shots": match.shots,
+            "total_shotsOnTarget": match.shotsOT,
+            "total_distance": match.distanceCovered
+        };
 
-        const response = await fetch(`http://127.0.0.1:8000/api/v1/diagnostics/by-match/${encodeURIComponent(match.id)}`);
+        const response = await fetch('http://127.0.0.1:8000/api/v1/diagnostics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stats: statsPayload })
+        });
 
         if (!response.ok) throw new Error('API Response Error');
         const data = await response.json();
@@ -266,17 +268,14 @@ async function renderAIRecommendations(match) {
             recs.push({ type: 'success', icon: '🤖', title: 'Digital Coach (Gemini)', msg: data.tactical_advice });
         }
         
-        const strengths = matchInsights.top_strengths || [];
-        const weaknesses = matchInsights.top_weaknesses || [];
-
-        if (strengths.length > 0) {
-            const sHtml = strengths.map(s => `<li>${s.feature} <br><span style="color:#22c55e">(Impact +${Number(s.impact).toFixed(3)})</span></li>`).join('');
-            recs.push({ type: 'info', icon: '⚡', title: 'Top Puncte Forte (Date reale jucatori)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${sHtml}</ul>` });
+        if (data.top_strengths && data.top_strengths.length > 0) {
+            const sHtml = data.top_strengths.map(s => `<li>${s.feature} <br><span style="color:#22c55e">(Impact +${s.impact.toFixed(3)})</span></li>`).join('');
+            recs.push({ type: 'info', icon: '⚡', title: 'Top Puncte Forte (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${sHtml}</ul>` });
         }
 
-        if (weaknesses.length > 0) {
-            const wHtml = weaknesses.map(s => `<li>${s.feature} <br><span style="color:#ef4444">(Impact ${Number(s.impact).toFixed(3)})</span></li>`).join('');
-            recs.push({ type: 'danger', icon: '⚠️', title: 'Top Puncte Slabe (Date reale jucatori)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${wHtml}</ul>` });
+        if (data.top_weaknesses && data.top_weaknesses.length > 0) {
+            const wHtml = data.top_weaknesses.map(s => `<li>${s.feature} <br><span style="color:#ef4444">(Impact ${s.impact.toFixed(3)})</span></li>`).join('');
+            recs.push({ type: 'danger', icon: '⚠️', title: 'Top Puncte Slabe (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${wHtml}</ul>` });
         }
 
         panel.innerHTML = recs.map(r => `
@@ -289,7 +288,7 @@ async function renderAIRecommendations(match) {
         panel.innerHTML = `
         <div class="alert-item danger">
           <span class="alert-icon">❌</span>
-          <div class="alert-content"><strong>Eroare Conexiune</strong>Nu se pot încărca recomandările AI pentru acest meci. Verificați backend-ul.</div>
+          <div class="alert-content"><strong>Eroare Conexiune</strong>Nu se poate accesa Backend-ul pe port 8000. Startați serverul Uvicorn!</div>
         </div>`;
     }
 }
