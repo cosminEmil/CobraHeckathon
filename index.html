@@ -220,12 +220,6 @@
           Universitatea <span class="highlight">&nbsp;Cluj</span>
           &nbsp;· Football Intelligence
         </div>
-        <div class="topbar-right">
-          <div class="live-badge">
-            <div class="live-dot"></div>LIVE
-          </div>
-          <div class="time-display" id="topbar-clock">--:--:--</div>
-        </div>
       </div>
 
       <!-- ════════════════════════════════════
@@ -233,8 +227,8 @@
     ═════════════════════════════════════ -->
       <section id="dashboard-page" class="page-section active">
         <div class="section-header">
-          <div class="section-title">📊 Dashboard <span class="gold">Principal</span></div>
-          <div class="section-subtitle">Privire de ansamblu · Sezon 2024/2025 · Liga 1 România</div>
+          <div class="section-title"> Dashboard <span class="gold">Valoare Echipă</span></div>
+          <div class="section-subtitle">Indicatori pozitivi · Impact ofensiv · Evoluție lot</div>
         </div>
 
         <!-- Next match -->
@@ -243,154 +237,65 @@
             <div
               style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--text-3);margin-bottom:6px">
               Următorul meci</div>
-            <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:var(--text-1)">U Cluj
-              <span style="color:var(--text-3)">vs</span> Rapid București</div>
-            <div style="font-size:13px;color:var(--text-2);margin-top:4px">🏟 Cluj Arena · 27 Apr 2025 · 20:00</div>
+            <div id="next-match-teams" style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:var(--text-1)">U Cluj
+              <span style="color:var(--text-3)">vs</span> FC Argeș</div>
+            <div id="next-match-meta" style="font-size:13px;color:var(--text-2);margin-top:4px">🏟 Cluj Arena · 2 Mai 2026 · 20:30</div>
           </div>
           <div class="countdown" id="countdown"></div>
         </div>
 
-        <!-- Stats row -->
+        <!-- KPI row -->
         <div class="stat-cards-grid">
           <div class="stat-card">
-            <div class="stat-label">Loc Clasament</div>
-            <div class="stat-value" data-counter="4">4</div>
-            <div class="stat-change up">↑ Liga 1</div>
+            <div class="stat-label">Meciuri analizate</div>
+            <div id="db-kpi-matches" class="stat-value" data-counter="0">0</div>
+            <div id="db-kpi-matches-sub" class="stat-change up">Bază de performanță actualizată</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Goluri Marcate</div>
-            <div class="stat-value" data-counter="47">47</div>
-            <div class="stat-change up">↑ 2.2 / meci</div>
+            <div class="stat-label">Puncte acumulate</div>
+            <div id="db-kpi-points" class="stat-value" data-counter="0">0</div>
+            <div id="db-kpi-ppg" class="stat-change up">Ritm pozitiv per meci</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Meciuri Câștigate</div>
-            <div class="stat-value" data-counter="13">13</div>
-            <div class="stat-change up">↑ din 21 jucate</div>
+            <div class="stat-label">Rată rezultate pozitive</div>
+            <div id="db-kpi-positive-rate" class="stat-value" data-counter="0">0</div>
+            <div class="stat-change up">Victorii + egaluri</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Acuratețe Pase %</div>
-            <div class="stat-value" data-counter="81">81</div>
-            <div class="stat-change up">↑ +3% față de sezonul trecut</div>
+            <div class="stat-label">Acuratețe medie pase</div>
+            <div id="db-kpi-pass-acc" class="stat-value" data-counter="0">0</div>
+            <div class="stat-change up">Control și construcție</div>
           </div>
         </div>
 
-        <div class="grid-2-1" style="margin-bottom:24px">
-          <!-- Form strip -->
+        <div style="margin-bottom:24px">
           <div class="card">
-            <div class="card-title"><span class="icon">📈</span> Formă Recentă (ultimele 10 meciuri)</div>
+            <div class="card-title"><span class="icon"></span> Formă Pozitivă (ultimele 10 meciuri)</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="form-strip"></div>
-            <div class="progress-bar-wrap">
-              <div class="progress-item">
-                <span class="progress-name">Atacant eficiență</span>
-                <div class="progress-track">
-                  <div class="progress-fill green" style="width:82%"></div>
-                </div>
-                <span class="progress-val">82%</span>
-              </div>
-              <div class="progress-item">
-                <span class="progress-name">Apărare soliditate</span>
-                <div class="progress-track">
-                  <div class="progress-fill blue" style="width:74%"></div>
-                </div>
-                <span class="progress-val">74%</span>
-              </div>
-              <div class="progress-item">
-                <span class="progress-name">Mijlocași presing</span>
-                <div class="progress-track">
-                  <div class="progress-fill" style="width:88%"></div>
-                </div>
-                <span class="progress-val">88%</span>
-              </div>
-              <div class="progress-item">
-                <span class="progress-name">Recuperare minge</span>
-                <div class="progress-track">
-                  <div class="progress-fill" style="width:71%"></div>
-                </div>
-                <span class="progress-val">71%</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quick AI -->
-          <div class="card">
-            <div class="card-title"><span class="icon">🤖</span> AI Insights</div>
-            <div class="alert-panel">
-              <div class="alert-item info"><span class="alert-icon">💡</span>
-                <div class="alert-content"><strong>Formă ascendentă</strong>5 din ultimele 6 meciuri cu punctaj pozitiv.
-                </div>
-              </div>
-              <div class="alert-item success"><span class="alert-icon">✅</span>
-                <div class="alert-content"><strong>Munteanu în formă maximă</strong>11 goluri, cel mai bun marcator al
-                  echipei.</div>
-              </div>
-              <div class="alert-item warning"><span class="alert-icon">⚠️</span>
-                <div class="alert-content"><strong>Apărare sub presiune</strong>15 goluri primite pe contraatac în
-                  ultimele 8 meciuri.</div>
-              </div>
-              <div class="alert-item danger"><span class="alert-icon">🔴</span>
-                <div class="alert-content"><strong>Oboseală acumulată</strong>Vătăjelu și Bancu au jucat 2200+ minute.
-                  Rotație recomandată.</div>
-              </div>
-            </div>
+            <div id="db-positive-summary" class="progress-bar-wrap"></div>
           </div>
         </div>
 
-        <!-- Top scorers -->
         <div class="card">
-          <div class="card-title"><span class="icon">⚽</span> Top Marcatori & Pasatori</div>
+          <div class="card-title"><span class="icon"></span> Jucători cu impact pozitiv</div>
           <div class="grid-3">
             <div>
               <div
                 style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px">
-                Marcatori</div>
-              <div class="progress-bar-wrap">
-                ${[['Munteanu', 11],['Eduardo', 8],['Deac', 5],['Vătăjelu', 5],['Hoban', 4]]
-                .map(([n,g]) => `
-                <div class="progress-item">
-                  <span class="progress-name">${n}</span>
-                  <div class="progress-track">
-                    <div class="progress-fill green" style="width:${g/11*100}%"></div>
-                  </div>
-                  <span class="progress-val">${g}</span>
-                </div>`).join('')}
-              </div>
+                Top marcatori</div>
+              <div id="db-top-scorers" class="progress-bar-wrap"></div>
             </div>
             <div>
               <div
                 style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px">
-                Pasatori Decisivi</div>
-              <div class="progress-bar-wrap">
-                ${[['Hoban', 6],['Ioniță', 6],['Vătăjelu', 5],['Deac', 5],['Manea', 4]]
-                .map(([n,g]) => `
-                <div class="progress-item">
-                  <span class="progress-name">${n}</span>
-                  <div class="progress-track">
-                    <div class="progress-fill blue" style="width:${g/7*100}%"></div>
-                  </div>
-                  <span class="progress-val">${g}</span>
-                </div>`).join('')}
-              </div>
+                Top asisturi</div>
+              <div id="db-top-assists" class="progress-bar-wrap"></div>
             </div>
             <div>
               <div
                 style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px">
-                Statistici Echipă</div>
-              <div style="display:flex;flex-direction:column;gap:14px">
-                ${[
-                ['Meciuri jucate','21',false],
-                ['Victorii','13',true],
-                ['Egaluri','4',false],
-                ['Înfrângeri','4',false],
-                ['Golaveraj','+22',true],
-                ['Puncte','43',true],
-                ].map(([l,v,hi]) => `
-                <div
-                  style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:10px">
-                  <span style="font-size:13px;color:var(--text-2)">${l}</span>
-                  <span
-                    style="font-size:15px;font-weight:700;font-family:'Rajdhani',sans-serif;color:${hi?'var(--gold)':'var(--text-1)'}">${v}</span>
-                </div>`).join('')}
-              </div>
+                Top construcție (pase/meci)</div>
+              <div id="db-top-build-up" class="progress-bar-wrap"></div>
             </div>
           </div>
         </div>
@@ -401,7 +306,7 @@
     ═════════════════════════════════════ -->
       <section id="match-analysis-page" class="page-section">
         <div class="section-header">
-          <div class="section-title">🧠 Analiză AI <span class="gold">Meciuri</span></div>
+          <div class="section-title"> Analiză AI <span class="gold">Meciuri</span></div>
           <div class="section-subtitle">Modele AI · Eficiență jucători · Recomandări tactice</div>
         </div>
 
@@ -420,7 +325,7 @@
         <div class="match-header" id="analysis-match-header"></div>
 
         <div class="card ai-hero-card">
-          <div class="card-title"><span class="icon">🤖</span> Recomandări AI pentru meciul selectat</div>
+          <div class="card-title"><span class="icon"></span> Recomandări AI pentru meciul selectat</div>
           <div class="alert-panel ai-hero-panel" id="ai-recommendations"></div>
         </div>
 
@@ -438,16 +343,16 @@
           <!-- Charts left col -->
           <div style="display:flex;flex-direction:column;gap:20px">
             <div class="card">
-              <div class="card-title"><span class="icon">📊</span> Top Line-Breakers (Pase în treimea adversă)</div>
+              <div class="card-title"><span class="icon"></span> Top Line-Breakers (Pase în treimea adversă)</div>
               <div class="chart-wrap"><canvas id="line-breakers-chart"></canvas></div>
             </div>
             <div class="grid-2">
               <div class="card">
-                <div class="card-title"><span class="icon">⚽</span> Posesie</div>
+                <div class="card-title"><span class="icon"></span> Posesie</div>
                 <div class="chart-wrap"><canvas id="possession-chart"></canvas></div>
               </div>
               <div class="card">
-                <div class="card-title"><span class="icon">🎯</span> Profil Tactic</div>
+                <div class="card-title"><span class="icon"></span> Profil Tactic</div>
                 <div class="chart-wrap"><canvas id="radar-chart"></canvas></div>
               </div>
             </div>
@@ -612,8 +517,9 @@
   <script>
     // ── Countdown to next match ──
     (function () {
-      const target = new Date('2025-04-27T20:00:00+03:00');
       function updateCountdown() {
+        const defaultIso = '2026-05-02T20:30:00+03:00';
+        const target = new Date(window.NEXT_MATCH_ISO || defaultIso);
         const diff = target - new Date();
         if (diff <= 0) { document.getElementById('countdown').innerHTML = '<span style="color:#fff;font-family:Rajdhani,sans-serif;font-size:20px">MECI ÎN DESFĂȘURARE!</span>'; return; }
         const d = Math.floor(diff / 86400000);

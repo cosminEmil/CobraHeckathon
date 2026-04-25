@@ -253,7 +253,7 @@ async function renderAIRecommendations(match) {
             "total_distance": match.distanceCovered
         };
 
-        const response = await fetch('http://127.0.0.1:8000/api/v1/diagnostics', {
+        const response = await fetch(`${API_BASE}/diagnostics`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ stats: statsPayload })
@@ -329,7 +329,7 @@ async function fetchMatchPlayers(matchId) {
     let cached = matchPlayersCache[matchId];
     if (cached) return cached;
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/v1/matches/ucluj/${encodeURIComponent(matchId)}/players`);
+        const response = await fetch(`${API_BASE}/matches/${encodeURIComponent(matchId)}/players`);
         if (!response.ok) return [];
         const payload = await response.json();
         cached = Array.isArray(payload.players) ? payload.players : [];
