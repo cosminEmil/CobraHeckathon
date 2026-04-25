@@ -7,3 +7,6 @@ joblib
 pydantic
 google-genai
 python-dotenv
+python-multipart
+numpy
+scipy

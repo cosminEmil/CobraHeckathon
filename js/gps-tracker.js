@@ -7,6 +7,8 @@ let alertInterval = null;
 let selectedPlayerId = 7; // Hoban default
 let matchMinute = 0;
 let gpsRunning = false;
+let gpsBackendMode = false;
+const API_BASE_URL = window.API_BASE_URL || 'http://127.0.0.1:8000';
 
 // Player GPS state: pitch is 680x440 SVG
 const GPS_PLAYERS = [
@@ -50,6 +52,7 @@ function initGPSTracker() {
   renderGPSPitch();
   renderGPSPlayerList();
   selectGPSPlayer(selectedPlayerId);
+  initGPSAIUpload();
   startGPSSimulation();
   gpsRunning = true;
 }
@@ -163,12 +166,12 @@ function startGPSSimulation() {
 
   // Alert injection every 12 seconds
   alertInterval = setInterval(() => {
-    injectRandomAlert();
+    if (!gpsBackendMode) injectRandomAlert();
   }, 12000);
 
   // First alert immediately
-  setTimeout(() => injectRandomAlert(), 2000);
-  setTimeout(() => injectRandomAlert(), 6000);
+  setTimeout(() => { if (!gpsBackendMode) injectRandomAlert(); }, 2000);
+  setTimeout(() => { if (!gpsBackendMode) injectRandomAlert(); }, 6000);
 }
 
 function updateDot(p) {
@@ -267,6 +270,9 @@ function updateSelectedPlayerStats(player) {
 }
 
 function getPlayerAITip(p) {
+  if (p.aiRisk && p.aiRisk !== 'low') {
+    return `<strong>Model AI-GPS:</strong> risc ${p.aiRisk}, fatigue score ${p.fatigueScore ?? '--'}/100. Verificați evoluția în următoarele minute.`;
+  }
   if (p.hr > 185) return `<strong>Alertă!</strong> FCmax atinsă — se recomandă înlocuire în următoarele 5 minute.`;
   if (p.speed < 5 && p.role !== 'gk') return `Viteză scăzută detectată. Evaluați starea fizică și considerați substituție.`;
   if (p.sprints > 12) return `${p.sprints} sprinturi — efort maxim. Monitorizați recuperarea musculară.`;
@@ -318,6 +324,191 @@ function renderGPSPlayerList() {
 }
 
 // ── Alerts ──
+function initGPSAIUpload() {
+  const form = document.getElementById('gps-ai-form');
+  if (!form || form.dataset.bound === 'true') return;
+  form.dataset.bound = 'true';
+  form.addEventListener('submit', analyzeUploadedGPSData);
+}
+
+async function analyzeUploadedGPSData(event) {
+  event.preventDefault();
+
+  const homeFile = document.getElementById('gps-tracking-home')?.files?.[0];
+  const awayFile = document.getElementById('gps-tracking-away')?.files?.[0];
+  const eventsFile = document.getElementById('gps-events')?.files?.[0];
+  const team = document.getElementById('gps-team')?.value || 'Home';
+  const reportMinute = Number(document.getElementById('gps-report-minute')?.value || 45);
+  const status = document.getElementById('gps-ai-status');
+
+  if (!homeFile || !awayFile || !eventsFile) {
+    setGPSAIStatus('Selectează toate cele 3 CSV-uri.', 'warning');
+    return;
+  }
+
+  gpsBackendMode = true;
+  if (alertInterval) clearInterval(alertInterval);
+  setGPSAIStatus('Se procesează CSV-urile...', 'loading');
+  renderGPSLoadingAlerts();
+
+  const formData = new FormData();
+  formData.append('tracking_home', homeFile);
+  formData.append('tracking_away', awayFile);
+  formData.append('events', eventsFile);
+  formData.append('team', team);
+  formData.append('report_time', String(reportMinute * 60));
+  formData.append('max_alerts', '3');
+  formData.append('use_gemini', 'true');
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/gps/analyze`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    renderGPSAIResult(data);
+    setGPSAIStatus(`Analiză completă · ${data.counts?.coach_alerts ?? 0} alerte`, 'success');
+  } catch (error) {
+    gpsBackendMode = false;
+    setGPSAIStatus('Eroare backend AI-GPS', 'danger');
+    renderGPSAIError(error);
+  }
+}
+
+function setGPSAIStatus(text, type = 'info') {
+  const el = document.getElementById('gps-ai-status');
+  if (!el) return;
+  const colors = {
+    info: 'var(--text-3)',
+    loading: '#fff',
+    success: 'var(--green)',
+    warning: '#d4d4d8',
+    danger: '#fff',
+  };
+  el.textContent = text;
+  el.style.color = colors[type] || colors.info;
+}
+
+function renderGPSLoadingAlerts() {
+  const panel = document.getElementById('gps-alerts-panel');
+  const source = document.getElementById('gps-alert-source');
+  const summary = document.getElementById('gps-ai-summary');
+  if (source) source.textContent = 'Backend AI-GPS';
+  if (summary) summary.textContent = 'Analizăm tracking-ul, evenimentele și predicțiile modelului de oboseală.';
+  if (!panel) return;
+  panel.innerHTML = `
+    <div class="alert-item info">
+      <span class="alert-icon">⏳</span>
+      <div class="alert-content"><strong>Procesare în curs</strong>Extragem feature-uri, rulăm modelul și filtrăm alertele pentru antrenor.</div>
+    </div>`;
+}
+
+function renderGPSAIResult(data) {
+  const source = document.getElementById('gps-alert-source');
+  const summary = document.getElementById('gps-ai-summary');
+  const panel = document.getElementById('gps-alerts-panel');
+  const minute = data.minute ?? Math.floor((data.report_time || 0) / 60);
+  const feed = data.coach_feed || {};
+  const alerts = feed.coach_alerts || [];
+
+  if (source) {
+    source.textContent = feed.source === 'gemini'
+      ? `Gemini · minutul ${minute}`
+      : `Filtru local · minutul ${minute}`;
+  }
+  if (summary) {
+    summary.innerHTML = `<strong>Rezumat AI:</strong> ${escapeHTML(feed.summary || 'Nu există rezumat disponibil.')}`;
+  }
+  if (!panel) return;
+
+  if (!alerts.length) {
+    panel.innerHTML = `
+      <div class="alert-item success">
+        <span class="alert-icon">✅</span>
+        <div class="alert-content"><strong>Fără alerte critice</strong>Modelul nu a selectat alerte prioritare pentru acest moment.</div>
+      </div>`;
+    return;
+  }
+
+  panel.innerHTML = alerts.map(alert => {
+    const cls = severityToAlertClass(alert.severity);
+    const icon = alertIcon(alert.category, alert.severity);
+    const player = alert.player ? ` · ${escapeHTML(String(alert.player))}` : '';
+    const title = alert.message || alert.title || 'Alertă AI';
+    const evidence = alert.evidence ? `<div>${escapeHTML(String(alert.evidence))}</div>` : '';
+    const suggestion = alert.suggestion ? `<div style="margin-top:4px;color:#fff">${escapeHTML(String(alert.suggestion))}</div>` : '';
+    return `
+      <div class="alert-item ${cls}">
+        <span class="alert-icon">${icon}</span>
+        <div class="alert-content">
+          <strong>#${alert.priority || '-'} · Min ${alert.minute ?? minute}${player}</strong>
+          <div>${escapeHTML(String(title))}</div>
+          ${evidence}
+          ${suggestion}
+        </div>
+      </div>`;
+  }).join('');
+
+  updateGPSPlayerRisks(data.model_predictions || []);
+}
+
+function renderGPSAIError(error) {
+  const panel = document.getElementById('gps-alerts-panel');
+  const source = document.getElementById('gps-alert-source');
+  const summary = document.getElementById('gps-ai-summary');
+  if (source) source.textContent = 'Eroare backend';
+  if (summary) summary.textContent = 'Backend-ul nu a putut procesa CSV-urile. Verifică serverul și formatul fișierelor.';
+  if (!panel) return;
+  panel.innerHTML = `
+    <div class="alert-item danger">
+      <span class="alert-icon">❌</span>
+      <div class="alert-content"><strong>Analiza AI-GPS a eșuat</strong>${escapeHTML(error.message || 'Eroare necunoscută')}</div>
+    </div>`;
+}
+
+function updateGPSPlayerRisks(predictions) {
+  predictions.forEach(prediction => {
+    const number = String(prediction.player || '').replace(/\D/g, '');
+    const player = GPS_PLAYERS.find(p => String(p.number) === number || String(p.id) === number);
+    if (!player) return;
+    player.aiRisk = prediction.risk_level;
+    player.fatigueScore = prediction.fatigue_score;
+  });
+  updateSelectedPlayerStats();
+}
+
+function severityToAlertClass(severity) {
+  const value = String(severity || '').toLowerCase();
+  if (value.includes('ridicat') || value.includes('high')) return 'danger';
+  if (value.includes('mediu') || value.includes('medium')) return 'warning';
+  if (value.includes('scazut') || value.includes('low')) return 'info';
+  return 'info';
+}
+
+function alertIcon(category, severity) {
+  const cat = String(category || '').toLowerCase();
+  const sev = String(severity || '').toLowerCase();
+  if (sev.includes('ridicat') || sev.includes('high')) return '🔴';
+  if (cat.includes('tactic')) return '📍';
+  if (cat.includes('physical') || cat.includes('fizic')) return '🏃';
+  return '🤖';
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function injectRandomAlert() {
   const unused = GPS_ALERTS_POOL.filter((_, i) => !activeAlertIndices.has(i));
   if (unused.length === 0) { activeAlertIndices.clear(); return; }

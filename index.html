@@ -560,11 +560,46 @@
           </div>
         </div>
 
+        <!-- AI-GPS CSV upload -->
+        <div class="card" style="margin-top:24px">
+          <div class="card-title">
+            <span class="icon">🧠</span> Analiză AI-GPS din CSV
+            <span id="gps-ai-status" style="margin-left:auto;font-size:11px;color:var(--text-3)">Pregătit pentru upload</span>
+          </div>
+          <form id="gps-ai-form" class="gps-upload-grid">
+            <label class="gps-upload-field">
+              <span>Tracking Home</span>
+              <input type="file" id="gps-tracking-home" accept=".csv" required />
+            </label>
+            <label class="gps-upload-field">
+              <span>Tracking Away</span>
+              <input type="file" id="gps-tracking-away" accept=".csv" required />
+            </label>
+            <label class="gps-upload-field">
+              <span>Events</span>
+              <input type="file" id="gps-events" accept=".csv" required />
+            </label>
+            <label class="gps-upload-field compact">
+              <span>Echipă</span>
+              <select id="gps-team">
+                <option value="Home">Home</option>
+                <option value="Away">Away</option>
+              </select>
+            </label>
+            <label class="gps-upload-field compact">
+              <span>Minut</span>
+              <input type="number" id="gps-report-minute" min="1" max="120" value="45" />
+            </label>
+            <button class="btn btn-white" type="submit">Rulează analiza</button>
+          </form>
+          <div id="gps-ai-summary" class="gps-ai-summary">Încarcă tracking Home/Away și events CSV pentru a genera alerte reale pentru antrenor.</div>
+        </div>
+
         <!-- Alerts -->
         <div class="card" style="margin-top:24px">
           <div class="card-title">
             <span class="icon">🚨</span> Alerte AI în Timp Real
-            <span style="margin-left:auto;font-size:11px;color:var(--text-3)">Actualizare automată la 12s</span>
+            <span id="gps-alert-source" style="margin-left:auto;font-size:11px;color:var(--text-3)">Simulare locală</span>
           </div>
           <div class="alert-panel" id="gps-alerts-panel">
             <div style="color:var(--text-3);font-size:13px">Așteptare date GPS...</div>

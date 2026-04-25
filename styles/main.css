@@ -619,6 +619,81 @@ body::before {
   color: #fff;
 }
 
+.gps-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr)) repeat(2, minmax(92px, 120px)) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.gps-upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gps-upload-field span {
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.gps-upload-field input,
+.gps-upload-field select {
+  width: 100%;
+  min-height: 38px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+.gps-upload-field input[type="file"] {
+  padding: 7px 8px;
+}
+
+.gps-upload-field input::file-selector-button {
+  margin-right: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.gps-ai-summary {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.gps-ai-summary strong {
+  color: #fff;
+}
+
+@media (max-width: 1200px) {
+  .gps-upload-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .gps-upload-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* =========================================
    PROGRESS BARS
    ========================================= */
