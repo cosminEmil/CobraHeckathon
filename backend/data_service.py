@@ -10,9 +10,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TEAM_NAME = "Universitatea Cluj"
-FALLBACK_DATASET_DIR = r"E:/Uhack/datasets/Date - meciuri-20260424T163501Z-3-001/Date - meciuri"
+TEAM_NAME_ALIASES = {
+    "universitatea cluj",
+    "u cluj",
+    "universitatea cluj napoca",
+}
+FALLBACK_DATASET_DIR = "/Users/cosminemilbucur/Desktop/Date - meciuri"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.getenv("APP_DB_PATH", os.path.join(BASE_DIR, "data", "ucluj.sqlite3"))
+
+# Folder dedicat DOAR meciurilor U Cluj (prioritate față de DATASET_DIR)
+FALLBACK_UCLUJ_DIR = "/Users/cosminemilbucur/Desktop/Meciuri U Cluj"
+
 
 
 def _safe_float(value: object) -> float:
@@ -24,6 +33,26 @@ def _safe_float(value: object) -> float:
 
 def _dataset_dir() -> str:
     return os.getenv("DATASET_DIR", FALLBACK_DATASET_DIR)
+
+
+def _ucluj_dataset_dir() -> str:
+    """Returnează folderul dedicat meciurilor U Cluj (poate fi gol)."""
+    return os.getenv("UCLUJ_DATASET_DIR", FALLBACK_UCLUJ_DIR)
+
+
+def _is_ucluj_team(team_name: str) -> bool:
+    return team_name.strip().lower() in TEAM_NAME_ALIASES
+
+
+def _list_json_files(directory: str) -> List[str]:
+    """Listează TOATE fișierele .json dintr-un director (indiferent de sufix)."""
+    if not os.path.isdir(directory):
+        return []
+    return [
+        os.path.join(directory, fn)
+        for fn in os.listdir(directory)
+        if fn.lower().endswith(".json") and not fn.startswith(".")
+    ]
 
 
 def _connect_db() -> sqlite3.Connection:
@@ -56,17 +85,28 @@ def _match_slug_from_filename(file_name: str) -> str:
     return os.path.splitext(file_name)[0].replace(" ", "-").replace(",", "").lower()
 
 
-def _load_players_map(dataset_dir: str) -> Dict[int, Dict[str, str]]:
-    players_path = os.path.join(dataset_dir, "players (1).json")
-    if not os.path.isfile(players_path):
+def _load_players_map(dataset_dirs: List[str]) -> Dict[int, Dict[str, str]]:
+    players_path = ""
+    for dataset_dir in dataset_dirs:
+        candidate = os.path.join(dataset_dir, "players (1).json")
+        if os.path.isfile(candidate):
+            players_path = candidate
+            break
+    if not players_path:
         return {}
+
     try:
         with open(players_path, "r", encoding="utf-8") as file:
             payload = json.load(file)
     except (OSError, json.JSONDecodeError):
         return {}
 
-    role_map = {"GK": "GK", "DEF": "DEF", "MID": "MID", "FWD": "ATT", "ATT": "ATT", "STR": "ATT"}
+    role_map = {
+        "GK": "GK",
+        "DF": "DEF", "DEF": "DEF",
+        "MD": "MID", "MID": "MID",
+        "FW": "ATT", "FWD": "ATT", "ATT": "ATT", "STR": "ATT",
+    }
     result: Dict[int, Dict[str, str]] = {}
     for player in payload.get("players", []):
         wy_id = player.get("wyId")
@@ -129,7 +169,7 @@ def _build_match_ui_payload(file_name: str, ucj_players: List[Dict[str, object]]
     minutes = sum_stats("minutesOnField")
     distance = minutes * 0.115
 
-    home_is_ucj = team_a == TEAM_NAME
+    home_is_ucj = _is_ucluj_team(team_a)
     ucj_goals, opp_goals = score.split("-")
     if not home_is_ucj:
         ucj_goals, opp_goals = opp_goals, ucj_goals
@@ -160,13 +200,25 @@ def _build_match_ui_payload(file_name: str, ucj_players: List[Dict[str, object]]
 
 def init_database() -> Dict[str, int]:
     dataset_dir = _dataset_dir()
-    players_map = _load_players_map(dataset_dir)
+    ucluj_dataset_dir = _ucluj_dataset_dir()
+    players_map = _load_players_map([ucluj_dataset_dir, dataset_dir])
 
+    ucluj_files_from_dedicated_dir = _list_match_files(ucluj_dataset_dir)
     ucluj_files = []
-    for file_path in _list_match_files(dataset_dir):
+    if ucluj_files_from_dedicated_dir:
+        ucluj_files = ucluj_files_from_dedicated_dir
+    else:
+        for file_path in _list_match_files(dataset_dir):
+            parsed = _parse_match_filename(os.path.basename(file_path))
+            if parsed and (_is_ucluj_team(parsed[0]) or _is_ucluj_team(parsed[1])):
+                ucluj_files.append(file_path)
+
+    for file_path in list(ucluj_files):
         parsed = _parse_match_filename(os.path.basename(file_path))
-        if parsed and TEAM_NAME in parsed[:2]:
-            ucluj_files.append(file_path)
+        if not parsed:
+            continue
+        if not (_is_ucluj_team(parsed[0]) or _is_ucluj_team(parsed[1])):
+            ucluj_files.remove(file_path)
     ucluj_team_id = _infer_ucluj_team_id(ucluj_files, players_map)
 
     conn = _connect_db()
@@ -248,7 +300,7 @@ def init_database() -> Dict[str, int]:
         if not parsed:
             continue
         team_a, team_b, score = parsed
-        if TEAM_NAME not in (team_a, team_b):
+        if not (_is_ucluj_team(team_a) or _is_ucluj_team(team_b)):
             continue
         try:
             with open(file_path, "r", encoding="utf-8") as file:
