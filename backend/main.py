@@ -9,22 +9,41 @@ import pandas as pd
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from schemas import MatchStatsInput, AnomalyInput, DiagnosticResponse, AnomalyResponse
-from ml_engine import get_ml_engine
-from llm_coach import generate_tactical_advice
-from data_service import (
-    get_match_insights,
-    get_match_player_stats,
-    get_match_stats_for_model,
-    get_player_insights,
-    init_database,
-    load_ucluj_matches,
-)
-from ai_gps.alerts import detect_physical_alerts, detect_tactical_alerts
-from ai_gps.coach_filter import fallback_coach_feed, filter_with_gemini
-from ai_gps.features import PlayerWindow, build_player_windows
-from ai_gps.metrica import read_events_csv, read_tracking_csv
-from ai_gps.model_inference import predict_features, predictions_to_alerts
+try:
+    from .schemas import MatchStatsInput, AnomalyInput, DiagnosticResponse, AnomalyResponse
+    from .ml_engine import get_ml_engine
+    from .llm_coach import generate_tactical_advice
+    from .data_service import (
+        get_match_insights as load_match_insights,
+        get_match_player_stats,
+        get_match_stats_for_model,
+        get_player_insights,
+        init_database,
+        load_ucluj_matches,
+    )
+    from .ai_gps.alerts import detect_physical_alerts, detect_tactical_alerts
+    from .ai_gps.coach_filter import fallback_coach_feed, filter_with_gemini
+    from .ai_gps.features import PlayerWindow, build_player_windows
+    from .ai_gps.metrica import read_events_csv, read_tracking_csv
+    from .ai_gps.model_inference import predict_features, predictions_to_alerts
+except ImportError:
+    from schemas import MatchStatsInput, AnomalyInput, DiagnosticResponse, AnomalyResponse
+    from ml_engine import get_ml_engine
+    from llm_coach import generate_tactical_advice
+    from data_service import (
+        get_match_insights as load_match_insights,
+        get_match_player_stats,
+        get_match_stats_for_model,
+        get_player_insights,
+        init_database,
+        load_ucluj_matches,
+    )
+    from ai_gps.alerts import detect_physical_alerts, detect_tactical_alerts
+    from ai_gps.coach_filter import fallback_coach_feed, filter_with_gemini
+    from ai_gps.features import PlayerWindow, build_player_windows
+    from ai_gps.metrica import read_events_csv, read_tracking_csv
+    from ai_gps.model_inference import predict_features, predictions_to_alerts
+
 
 app = FastAPI(title="Rețeta Victoriei - Digital Coach API")
 
@@ -33,11 +52,12 @@ GPS_MODEL_PATH = Path(os.getenv("GPS_MODEL_PATH", BASE_DIR / "models" / "fatigue
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.on_event("startup")
 def load_models():
@@ -45,50 +65,28 @@ def load_models():
     init_database()
 
 
-@app.get("/api/v1/matches/ucluj")
-def list_ucluj_matches():
-    return {"matches": load_ucluj_matches()}
-
-
-@app.get("/api/v1/matches/ucluj/{match_id}/players")
-def list_match_players(match_id: str):
-    return {"players": get_match_player_stats(match_id)}
-
-
-@app.get("/api/v1/players/overall-insights")
-def player_overall_insights():
-    return get_player_insights()
-
-
-@app.get("/api/v1/matches/ucluj/{match_id}/insights")
-def match_insights(match_id: str):
-    return get_match_insights(match_id)
-
 @app.post("/api/v1/diagnostics", response_model=DiagnosticResponse)
 def run_diagnostics(input_data: MatchStatsInput):
     engine = get_ml_engine()
-    
     try:
         win_prob, top_strengths, top_weaknesses = engine.analyze_match(input_data.stats)
-        
         tactical_advice = "Nu au fost detectate slăbiciuni majore. Mențineți structura și ritmul actual."
         if top_weaknesses:
             worst = top_weaknesses[0]
             tactical_advice = generate_tactical_advice(worst["feature"], worst["impact"])
-
         return DiagnosticResponse(
             win_probability=win_prob,
             top_strengths=top_strengths,
             top_weaknesses=top_weaknesses,
-            tactical_advice=tactical_advice
+            tactical_advice=tactical_advice,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/v1/anomalies", response_model=AnomalyResponse)
 def find_anomalies(input_data: AnomalyInput):
     engine = get_ml_engine()
-    
     try:
         results = engine.detect_anomalies(input_data.players)
         return AnomalyResponse(anomalies=results)
@@ -103,6 +101,67 @@ def health_check():
         "gps_model_exists": GPS_MODEL_PATH.exists(),
         "gemini_configured": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
     }
+
+
+@app.get("/api/v1/matches/ucluj")
+def list_ucluj_matches():
+    try:
+        return {"matches": load_ucluj_matches()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/players/overall-insights")
+def player_overall_insights():
+    try:
+        return get_player_insights()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/matches/ucluj/{match_id}/players")
+@app.get("/api/v1/matches/{match_id}/players")
+def list_match_players(match_id: str):
+    try:
+        return {"players": get_match_player_stats(match_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/matches/ucluj/{match_id}/insights")
+@app.get("/api/v1/matches/{match_id}/insights")
+def match_insights(match_id: str):
+    try:
+        return load_match_insights(match_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/matches/{match_id}/model-stats")
+def match_model_stats(match_id: str):
+    try:
+        stats = get_match_stats_for_model(match_id)
+        if not stats:
+            raise HTTPException(status_code=404, detail=f"Match '{match_id}' not found")
+        return stats
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/db/init")
+def init_db():
+    try:
+        result = init_database()
+        return {
+            "status": "ok",
+            "matches_inserted": result["matches"],
+            "player_stats_inserted": result["player_stats"],
+            "ucluj_team_id": result["ucluj_team_id"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/v1/gps/analyze")
