@@ -1,13 +1,14 @@
 .env
-backend/.venv
 backend/.env
 
 .venv/
+backend/.venv/
 venv/
 env/
 ENV/
 
 __pycache__/
+backend/__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
@@ -22,5 +23,5 @@ build/
 Thumbs.db
 
 uploads/
+backend/data/
 *.tmp
-backend/.env

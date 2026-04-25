@@ -3,33 +3,40 @@
 //  Mirroring logic from analysis.py
 // =============================================
 
-let selectedMatchId = 'fcsb-ucj';
+let selectedMatchId = null;
 let lineBreakersChart = null;
 let possessionChart = null;
 let radarChart = null;
+const matchInsightsCache = {};
+const matchPlayersCache = {};
+let currentMatchPlayers = [];
 
 function initMatchAnalysis() {
+    if (!selectedMatchId && Array.isArray(window.MATCHES) && window.MATCHES.length > 0) {
+        selectedMatchId = window.MATCHES[0].id;
+    }
     renderMatchChips();
-    loadMatch(selectedMatchId);
+    if (selectedMatchId) loadMatch(selectedMatchId);
 }
 
 function renderMatchChips() {
     const container = document.getElementById('match-chips');
     if (!container) return;
-    container.innerHTML = MATCHES.map(m =>
+    container.innerHTML = (window.MATCHES || []).map(m =>
         `<button class="match-chip ${m.id === selectedMatchId ? 'active' : ''}"
       onclick="loadMatch('${m.id}')" id="chip-${m.id}">${m.label}</button>`
     ).join('');
 }
 
-function loadMatch(matchId) {
+async function loadMatch(matchId) {
     selectedMatchId = matchId;
     document.querySelectorAll('.match-chip').forEach(c => c.classList.remove('active'));
     const chip = document.getElementById(`chip-${matchId}`);
     if (chip) chip.classList.add('active');
 
-    const match = MATCHES.find(m => m.id === matchId);
+    const match = (window.MATCHES || []).find(m => m.id === matchId);
     if (!match) return;
+    currentMatchPlayers = await fetchMatchPlayers(matchId);
 
     renderMatchHeader(match);
     renderMatchStats(match);
@@ -119,14 +126,11 @@ function renderLineBreakersChart(matchId) {
     const canvas = document.getElementById('line-breakers-chart');
     if (!canvas) return;
 
-    const matchData = {
-        'fcsb-ucj': [42, 38, 35, 29, 24],
-        'cfr-ucj': [31, 27, 25, 21, 18],
-        'sep-ucj': [22, 19, 17, 14, 11],
-        'fcb-ucj': [48, 43, 39, 32, 27],
-    };
-    const players = ['Hoban', 'Munteanu', 'Vătăjelu', 'Itu', 'Deac'];
-    const data = matchData[matchId] || matchData['fcsb-ucj'];
+    const ranked = [...(currentMatchPlayers || [])]
+        .sort((a, b) => (b.passes_final_third || 0) - (a.passes_final_third || 0))
+        .slice(0, 5);
+    const players = ranked.map(p => p.name);
+    const data = ranked.map(p => p.passes_final_third || 0);
 
     if (lineBreakersChart) lineBreakersChart.destroy();
     lineBreakersChart = new Chart(canvas, {
@@ -292,10 +296,11 @@ async function renderAIRecommendations(match) {
 function renderEfficiencyScores() {
     const tbody = document.getElementById('efficiency-table-body');
     if (!tbody) return;
-    const sorted = [...UCJ_SQUAD]
+    const sorted = [...(currentMatchPlayers || [])]
         .map(p => ({
             ...p,
-            eff: +(p.goals * 10 + p.assists * 8 + p.passes * 0.1 - (Math.random() * 3 | 0) * 2).toFixed(1)
+            number: '-',
+            eff: +(p.goals * 10 + p.assists * 8 + p.passes * 0.1).toFixed(1)
         }))
         .sort((a, b) => b.eff - a.eff)
         .slice(0, 10);
@@ -318,4 +323,27 @@ function renderEfficiencyScores() {
       </td>
     </tr>
   `).join('');
+}
+
+async function fetchMatchPlayers(matchId) {
+    let cached = matchPlayersCache[matchId];
+    if (cached) return cached;
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/api/v1/matches/ucluj/${encodeURIComponent(matchId)}/players`);
+        if (!response.ok) return [];
+        const payload = await response.json();
+        cached = Array.isArray(payload.players) ? payload.players : [];
+        matchPlayersCache[matchId] = cached;
+        return cached;
+    } catch (error) {
+        return [];
+    }
+}
+
+function toggleMatchList() {
+    const panel = document.getElementById('match-list-panel');
+    const arrow = document.getElementById('match-list-arrow');
+    if (!panel || !arrow) return;
+    panel.classList.toggle('collapsed');
+    arrow.style.transform = panel.classList.contains('collapsed') ? 'rotate(-90deg)' : 'rotate(0deg)';
 }

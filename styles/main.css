@@ -273,6 +273,7 @@ body::before {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-width: 0;
 }
 
 .topbar {
@@ -619,80 +620,26 @@ body::before {
   color: #fff;
 }
 
-.gps-upload-grid {
+.ai-hero-card {
+  margin-bottom: 20px;
+  border-color: var(--border-bright);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+.ai-hero-panel {
+  max-height: none;
+  gap: 16px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr)) repeat(2, minmax(92px, 120px)) auto;
-  gap: 12px;
-  align-items: end;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
-.gps-upload-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
+.ai-hero-panel .alert-item {
+  padding: 16px;
+  font-size: 14px;
+  border-width: 1px;
+  height: 100%;
 }
 
-.gps-upload-field span {
-  font-size: 11px;
-  color: var(--text-3);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.gps-upload-field input,
-.gps-upload-field select {
-  width: 100%;
-  min-height: 38px;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-sm);
-  color: var(--text-1);
-  padding: 8px 10px;
-  font-size: 12px;
-  font-family: 'Inter', sans-serif;
-}
-
-.gps-upload-field input[type="file"] {
-  padding: 7px 8px;
-}
-
-.gps-upload-field input::file-selector-button {
-  margin-right: 8px;
-  border: 0;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  padding: 5px 8px;
-  cursor: pointer;
-}
-
-.gps-ai-summary {
-  margin-top: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-2);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.gps-ai-summary strong {
-  color: #fff;
-}
-
-@media (max-width: 1200px) {
-  .gps-upload-grid {
-    grid-template-columns: repeat(2, minmax(180px, 1fr));
-  }
-}
-
-@media (max-width: 720px) {
-  .gps-upload-grid {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* =========================================
    PROGRESS BARS
@@ -890,8 +837,10 @@ body::before {
 .match-selector {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  margin-bottom: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .match-chip {
@@ -917,6 +866,44 @@ body::before {
   border-color: #fff;
   color: #000;
   font-weight: 700;
+}
+
+.matches-dropdown-card {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+}
+
+.match-list-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border-mid);
+  background: var(--bg-3);
+  color: var(--text-1);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.match-list-arrow {
+  transition: transform 0.2s ease;
+}
+
+.match-list-panel {
+  margin-top: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  transition: max-height 0.25s ease, opacity 0.25s ease;
+  opacity: 1;
+}
+
+.match-list-panel.collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 
 /* =========================================
