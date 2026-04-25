@@ -12,6 +12,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from schemas import MatchStatsInput, AnomalyInput, DiagnosticResponse, AnomalyResponse
 from ml_engine import get_ml_engine
 from llm_coach import generate_tactical_advice
+from data_service import (
+    get_match_insights,
+    get_match_player_stats,
+    get_match_stats_for_model,
+    get_player_insights,
+    init_database,
+    load_ucluj_matches,
+)
 from ai_gps.alerts import detect_physical_alerts, detect_tactical_alerts
 from ai_gps.coach_filter import fallback_coach_feed, filter_with_gemini
 from ai_gps.features import PlayerWindow, build_player_windows
@@ -34,6 +42,27 @@ app.add_middleware(
 @app.on_event("startup")
 def load_models():
     get_ml_engine()
+    init_database()
+
+
+@app.get("/api/v1/matches/ucluj")
+def list_ucluj_matches():
+    return {"matches": load_ucluj_matches()}
+
+
+@app.get("/api/v1/matches/ucluj/{match_id}/players")
+def list_match_players(match_id: str):
+    return {"players": get_match_player_stats(match_id)}
+
+
+@app.get("/api/v1/players/overall-insights")
+def player_overall_insights():
+    return get_player_insights()
+
+
+@app.get("/api/v1/matches/ucluj/{match_id}/insights")
+def match_insights(match_id: str):
+    return get_match_insights(match_id)
 
 @app.post("/api/v1/diagnostics", response_model=DiagnosticResponse)
 def run_diagnostics(input_data: MatchStatsInput):
