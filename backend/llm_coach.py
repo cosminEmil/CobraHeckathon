@@ -12,12 +12,13 @@ except Exception as e:
 
 def generate_tactical_advice(weakness_feature: str, impact_score: float) -> str:
     if not client:
-        return "Could not initialize Gemini. Please ensure you have added your GEMINI_API_KEY to a .env file."
+        return "Gemini nu a putut fi inițializat. Verifică dacă GEMINI_API_KEY este setată în fișierul .env."
         
-    prompt = f"""You are an elite tactical coaching AI for the football team Universitatea Cluj (U Cluj). 
-Our Machine Learning architecture just generated diagnostics for their latest match.
-The model identified that their biggest mathematical weakness in this match was '{weakness_feature}' (which had a negative mathematical impact score of {impact_score:.4f} on our chances of winning).
-Based on this metric, please provide exactly 2 sentences of tactical advice on how the team can improve this specific weakness in the next match. Do not include any filler text.
+    prompt = f"""Ești un antrenor secund de elită pentru echipa de fotbal Universitatea Cluj.
+Arhitectura noastră de machine learning a generat diagnostice pentru ultimul meci.
+Modelul a identificat că cea mai mare slăbiciune matematică din acest meci a fost „{weakness_feature}”, cu impact negativ {impact_score:.4f} asupra șanselor de victorie.
+Pe baza acestei metrici, oferă exact 2 propoziții de sfat tactic concret pentru îmbunătățirea acestei slăbiciuni în următorul meci.
+Răspunde exclusiv în limba română, fără text introductiv și fără explicații extra.
 """
 
     try:
@@ -27,4 +28,4 @@ Based on this metric, please provide exactly 2 sentences of tactical advice on h
         )
         return response.text.strip()
     except Exception as e:
-        return f"Gemini API Error: {str(e)}"
+        return f"Eroare API Gemini: {str(e)}"

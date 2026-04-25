@@ -5,7 +5,6 @@
 
 let selectedMatchId = null;
 let lineBreakersChart = null;
-let possessionChart = null;
 let radarChart = null;
 const matchInsightsCache = {};
 const matchPlayersCache = {};
@@ -41,7 +40,6 @@ async function loadMatch(matchId) {
     renderMatchHeader(match);
     renderMatchStats(match);
     renderLineBreakersChart(matchId);
-    renderPossessionChart(match);
     renderRadarChart(match);
     renderAIRecommendations(match);
     renderEfficiencyScores();
@@ -65,7 +63,7 @@ function renderMatchHeader(match) {
       <div class="score-meta">${match.date} · ${match.opponent}</div>
       <div style="margin-top:8px">
         <span class="tag ${ucjGoals > oppGoals ? 'white' : ucjGoals === oppGoals ? 'white' : 'white'}">
-          ${ucjGoals > oppGoals ? '✓ VICTORIE' : ucjGoals === oppGoals ? '— EGALITATE' : '✗ ÎNFRÂNGERE'}
+          ${ucjGoals > oppGoals ? 'VICTORIE' : ucjGoals === oppGoals ? 'EGALITATE' : 'ÎNFRÂNGERE'}
         </span>
       </div>
     </div>
@@ -78,23 +76,24 @@ function renderMatchHeader(match) {
 
 function renderMatchStats(match) {
     const stats = [
-        { id: 'ms-possession', val: match.possession + '%', label: 'Posesie UCJ' },
         { id: 'ms-passes', val: match.passes, label: 'Pase totale' },
         { id: 'ms-pass-acc', val: match.passAcc + '%', label: 'Acuratețe pase' },
         { id: 'ms-shots', val: match.shots, label: 'Șuturi' },
         { id: 'ms-shots-ot', val: match.shotsOT, label: 'Șuturi pe poartă' },
-        { id: 'ms-distance', val: match.distanceCovered + ' km', label: 'Distanță acoperită' },
+        { id: 'ms-corners', val: match.corners, label: 'Cornere' },
+        { id: 'ms-fouls', val: match.fouls, label: 'Faulturi' },
     ];
     stats.forEach(s => {
         const el = document.getElementById(s.id);
         if (el) el.innerHTML = `<div class="stat-value">${s.val}</div><div class="stat-label">${s.label}</div>`;
     });
 
+    const shotAccuracy = match.shots > 0 ? match.shotsOT / match.shots : 0;
     const score = Math.round(
-        (match.possession / 100) * 25 +
-        (match.passAcc / 100) * 25 +
-        (match.shotsOT / Math.max(match.shots, 1)) * 25 +
-        (match.distanceCovered / 115) * 25
+        (match.passAcc / 100) * 35 +
+        shotAccuracy * 30 +
+        Math.min(match.shots / 18, 1) * 20 +
+        Math.min(match.corners / 10, 1) * 15
     );
     renderScoreRing(score);
 }
@@ -159,47 +158,29 @@ function renderLineBreakersChart(matchId) {
     });
 }
 
-function renderPossessionChart(match) {
-    const canvas = document.getElementById('possession-chart');
-    if (!canvas) return;
-    if (possessionChart) possessionChart.destroy();
-    possessionChart = new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-            labels: ['U Cluj', match.opponent],
-            datasets: [{
-                data: [match.possession, 100 - match.possession],
-                backgroundColor: ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.12)'],
-                borderColor: ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.04)'],
-                borderWidth: 2,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            cutout: '72%',
-            plugins: {
-                legend: { position: 'bottom', labels: { color: '#52525b', padding: 12, font: { size: 12 } } }
-            }
-        }
-    });
-}
-
 function renderRadarChart(match) {
     const canvas = document.getElementById('radar-chart');
     if (!canvas) return;
     if (radarChart) radarChart.destroy();
+    const maxFinalThirdPasses = Math.max(
+        1,
+        ...(currentMatchPlayers || []).map(p => p.passes_final_third || 0)
+    );
+    const totalFinalThirdPasses = (currentMatchPlayers || []).reduce(
+        (sum, p) => sum + (p.passes_final_third || 0),
+        0
+    );
     const normalised = {
         atac: Math.min((match.shots / 18) * 100, 100),
         precizie: match.passAcc,
-        posesie: match.possession,
-        presing: Math.min(((20 - match.fouls) / 20) * 100, 100),
-        acoperire: Math.min((match.distanceCovered / 112) * 100, 100),
+        progresie: Math.min((totalFinalThirdPasses / (maxFinalThirdPasses * 5)) * 100, 100),
+        disciplina: Math.max(0, Math.min(((20 - match.fouls) / 20) * 100, 100)),
         cornere: Math.min((match.corners / 10) * 100, 100),
     };
     radarChart = new Chart(canvas, {
         type: 'radar',
         data: {
-            labels: ['Atac', 'Precizie', 'Posesie', 'Presing', 'Acoperire', 'Standarde'],
+            labels: ['Atac', 'Precizie', 'Pase T3', 'Disciplină', 'Cornere'],
             datasets: [{
                 label: 'U Cluj',
                 data: Object.values(normalised),
@@ -245,12 +226,10 @@ async function renderAIRecommendations(match) {
 
     try {
         const statsPayload = {
-            "avg_possession": match.possession,
             "total_passes": match.passes,
             "percent_passAcc": match.passAcc,
             "total_shots": match.shots,
-            "total_shotsOnTarget": match.shotsOT,
-            "total_distance": match.distanceCovered
+            "total_shotsOnTarget": match.shotsOT
         };
 
         const response = await fetch('http://127.0.0.1:8000/api/v1/diagnostics', {
@@ -265,29 +244,27 @@ async function renderAIRecommendations(match) {
         const recs = [];
         
         if (data.tactical_advice) {
-            recs.push({ type: 'success', icon: '🤖', title: 'Digital Coach (Gemini)', msg: data.tactical_advice });
+            recs.push({ type: 'success', title: 'Digital Coach (Gemini)', msg: data.tactical_advice });
         }
         
         if (data.top_strengths && data.top_strengths.length > 0) {
             const sHtml = data.top_strengths.map(s => `<li>${s.feature} <br><span style="color:#22c55e">(Impact +${s.impact.toFixed(3)})</span></li>`).join('');
-            recs.push({ type: 'info', icon: '⚡', title: 'Top Puncte Forte (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${sHtml}</ul>` });
+            recs.push({ type: 'info', title: 'Top Puncte Forte (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${sHtml}</ul>` });
         }
 
         if (data.top_weaknesses && data.top_weaknesses.length > 0) {
             const wHtml = data.top_weaknesses.map(s => `<li>${s.feature} <br><span style="color:#ef4444">(Impact ${s.impact.toFixed(3)})</span></li>`).join('');
-            recs.push({ type: 'danger', icon: '⚠️', title: 'Top Puncte Slabe (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${wHtml}</ul>` });
+            recs.push({ type: 'danger', title: 'Top Puncte Slabe (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${wHtml}</ul>` });
         }
 
         panel.innerHTML = recs.map(r => `
         <div class="alert-item ${r.type}">
-          <span class="alert-icon">${r.icon}</span>
           <div class="alert-content"><strong>${r.title}</strong>${r.msg}</div>
         </div>`).join('');
         
     } catch (error) {
         panel.innerHTML = `
         <div class="alert-item danger">
-          <span class="alert-icon">❌</span>
           <div class="alert-content"><strong>Eroare Conexiune</strong>Nu se poate accesa Backend-ul pe port 8000. Startați serverul Uvicorn!</div>
         </div>`;
     }

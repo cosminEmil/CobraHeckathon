@@ -9,9 +9,7 @@ function renderPlayers() {
     const eff = +(p.goals * 10 + p.assists * 8 + p.passes * 0.1).toFixed(0);
     return `
     <div class="player-card" onclick="openPlayerModal(${p.id})">
-      <div class="player-number">${p.number}</div>
       <div class="player-name">${p.name}</div>
-      <div class="player-pos"><span class="pos-badge ${p.pos.toLowerCase()}">${p.pos}</span></div>
       <div class="player-stat-row" style="border-top:1px solid var(--border);padding-top:12px">
         <div class="player-stat-mini"><div class="val">${p.goals}</div><div class="lbl">Goluri</div></div>
         <div class="player-stat-mini"><div class="val">${p.assists}</div><div class="lbl">Asisturi</div></div>
@@ -32,18 +30,17 @@ function openPlayerModal(id) {
   body.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
       <div>
-        <div style="font-size:64px;font-family:Rajdhani,sans-serif;font-weight:900;color:#fff;line-height:1">${p.number}</div>
         <div style="font-size:22px;font-weight:700;color:var(--text-1)">${p.name}</div>
-        <div style="margin-top:6px"><span class="pos-badge ${p.pos.toLowerCase()}">${p.pos}</span> <span class="text-muted" style="margin-left:8px">${p.age} ani</span></div>
+        <div style="margin-top:6px"><span class="text-muted">ID dataset ${p.id}</span></div>
       </div>
       <canvas id="modal-radar" width="200" height="200"></canvas>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
       ${[
-      ['⚽ Goluri', p.goals],
-      ['🎯 Asisturi', p.assists],
-      ['🔗 Pase', p.passes],
-      ['📊 Meciuri', p.matches],
+      ['Goluri', p.goals],
+      ['Asisturi', p.assists],
+      ['Pase', p.passes],
+      ['Meciuri', p.matches],
     ].map(([l, v]) => `<div class="mini-stat"><div class="ms-val">${v}</div><div class="ms-lbl">${l}</div></div>`).join('')}
     </div>
     <div style="padding:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);margin-bottom:20px">
@@ -68,7 +65,7 @@ function openPlayerModal(id) {
     new Chart(ctx, {
       type: 'radar',
       data: {
-        labels: ['Gol', 'Asist', 'Pase', 'Prezență', 'Eficiență', 'Constanță'],
+        labels: ['Gol', 'Asist', 'Pase', 'Prezență', 'Eficiență', 'Consistență'],
         datasets: [{
           data: [
             Math.min(p.goals / 15 * 100, 100),

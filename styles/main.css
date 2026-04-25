@@ -640,6 +640,240 @@ body::before {
   height: 100%;
 }
 
+.gps-playback-card,
+.gps-upload-card {
+  margin-top: 24px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018));
+}
+
+.gps-playback-card .card-title span:last-child,
+.gps-upload-card .card-title span:last-child {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+}
+
+.gps-playback-controls {
+  display: grid;
+  grid-template-columns: auto auto 70px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.gps-playback-controls input[type="range"] {
+  width: 100%;
+  accent-color: #fff;
+}
+
+.gps-time-readout {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+
+.gps-playback-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.gps-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr)) minmax(92px, 120px) minmax(92px, 110px) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.gps-upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.gps-upload-field span {
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.gps-upload-field input,
+.gps-upload-field select {
+  width: 100%;
+  min-height: 40px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+.gps-upload-field input[type="file"] {
+  padding: 7px 8px;
+}
+
+.gps-upload-field input::file-selector-button {
+  margin-right: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.gps-ai-summary {
+  margin-top: 14px;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.gps-ai-summary strong {
+  color: #fff;
+}
+
+.coach-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+.coach-column {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.coach-column.optimist {
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.coach-column.mixt {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.coach-column.pesimist {
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+.coach-column-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.coach-name {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-1);
+  line-height: 1;
+}
+
+.coach-tone {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.coach-personality {
+  min-height: 36px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.coach-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.coach-alert-list .alert-item {
+  padding: 12px;
+  font-size: 12.5px;
+}
+
+.coach-evidence {
+  margin-top: 4px;
+  color: var(--text-3);
+}
+
+.coach-suggestion {
+  margin-top: 5px;
+  color: var(--text-1);
+}
+
+.coach-empty {
+  padding: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.metrica-player.home {
+  fill: #fff;
+  stroke: rgba(255, 255, 255, 0.95);
+}
+
+.metrica-player.away {
+  fill: #52525b;
+  stroke: rgba(255, 255, 255, 0.5);
+}
+
+.metrica-ball {
+  fill: #f5f5f5;
+  stroke: #111;
+}
+
+@media (max-width: 1200px) {
+  .coach-alert-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gps-upload-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .gps-playback-controls {
+    grid-template-columns: auto auto 70px;
+  }
+
+  .gps-playback-controls input[type="range"] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .gps-upload-grid,
+  .gps-playback-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 /* =========================================
    PROGRESS BARS
@@ -1014,14 +1248,26 @@ body::before {
   border: 1px solid var(--border-mid);
   border-radius: var(--radius-lg);
   padding: 22px 28px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
+  justify-items: center;
+  column-gap: 28px;
   margin-bottom: 20px;
 }
 
 .team-block {
   text-align: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.team-block:first-child {
+  justify-self: end;
+}
+
+.team-block:last-child {
+  justify-self: start;
 }
 
 .team-name {
@@ -1029,6 +1275,7 @@ body::before {
   font-size: 18px;
   font-weight: 700;
   color: var(--text-1);
+  overflow-wrap: anywhere;
 }
 
 .team-badge {
@@ -1056,6 +1303,7 @@ body::before {
 
 .score-display {
   text-align: center;
+  justify-self: center;
 }
 
 .score-nums {

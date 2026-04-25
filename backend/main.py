@@ -71,7 +71,7 @@ def run_diagnostics(input_data: MatchStatsInput):
     try:
         win_prob, top_strengths, top_weaknesses = engine.analyze_match(input_data.stats)
         
-        tactical_advice = "No major weaknesses detected! Keep it up."
+        tactical_advice = "Nu au fost detectate slăbiciuni majore. Mențineți structura și ritmul actual."
         if top_weaknesses:
             worst = top_weaknesses[0]
             tactical_advice = generate_tactical_advice(worst["feature"], worst["impact"])

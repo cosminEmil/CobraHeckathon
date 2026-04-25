@@ -8,6 +8,24 @@ from typing import Any
 
 SEVERITY_RANK = {"ridicat": 0, "high": 0, "mediu": 1, "medium": 1, "scazut": 2, "low": 2}
 
+COACH_PERSONAS = [
+    {
+        "tone": "optimist",
+        "coach": "Mihai",
+        "personality": "calm, constructiv, caută oportunități și păstrează încrederea echipei",
+    },
+    {
+        "tone": "mixt",
+        "coach": "Andrei",
+        "personality": "echilibrat, pragmatic, combină riscurile cu soluții imediate",
+    },
+    {
+        "tone": "pesimist",
+        "coach": "Sorin",
+        "personality": "precaut, defensiv, anticipează cel mai rău scenariu și cere măsuri rapide",
+    },
+]
+
 
 def fallback_coach_feed(raw_alerts: list[dict[str, Any]], max_alerts: int = 3) -> dict[str, Any]:
     sorted_alerts = sorted(
@@ -36,6 +54,7 @@ def fallback_coach_feed(raw_alerts: list[dict[str, Any]], max_alerts: int = 3) -
     return {
         "source": "fallback",
         "coach_alerts": coach_alerts,
+        "coach_views": _build_fallback_coach_views(coach_alerts),
         "summary": "Cele mai importante alerte au fost selectate automat dupa severitate si scor.",
     }
 
@@ -70,40 +89,111 @@ def filter_with_gemini(payload: dict[str, Any], max_alerts: int = 3) -> dict[str
         return parsed
 
     parsed["source"] = "gemini"
+    if "coach_views" not in parsed:
+        parsed["coach_views"] = _build_fallback_coach_views(parsed.get("coach_alerts", []))
+    if "coach_alerts" not in parsed:
+        parsed["coach_alerts"] = _flatten_coach_views(parsed.get("coach_views", []), max_alerts=max_alerts)
     return parsed
 
 
 def _build_prompt(payload: dict[str, Any], max_alerts: int) -> str:
     return f"""
-You are an assistant coach AI for a football team.
+Ești un sistem AI de suport pentru banca tehnică a unei echipe de fotbal.
 
-You receive compact model predictions and raw physical/tactical alerts.
-Select maximum {max_alerts} alerts for the coach.
-Prioritize urgent, actionable, data-supported alerts.
-Merge duplicate alerts about the same player or tactical zone.
-Do not invent data.
-Return only valid JSON, with no Markdown.
+Primești predicții compacte ale modelului și alerte fizice/tactice brute.
+Trebuie să construiești trei perspective de antrenor secund:
+1. optimist: constructiv, caută oportunități și formulează soluții încurajatoare;
+2. mixt: echilibrat, pragmatic, arată și riscul și acțiunea recomandată;
+3. pesimist: precaut, defensiv, evidențiază riscul maxim și cere intervenție rapidă.
 
-Required JSON shape:
+Pentru fiecare perspectivă selectează maximum {max_alerts} alerte.
+Prioritizează alertele urgente, acționabile și susținute de date.
+Comasează alertele duplicate despre același jucător sau aceeași zonă tactică.
+Nu inventa date, valori, jucători sau minute.
+Răspunde exclusiv în limba română.
+Returnează doar JSON valid, fără Markdown.
+
+Forma JSON obligatorie:
 {{
+  "coach_views": [
+    {{
+      "tone": "optimist",
+      "coach": "Mihai",
+      "personality": "calm, constructiv, caută oportunități",
+      "alerts": [
+        {{
+          "priority": 1,
+          "minute": 45,
+          "category": "physical|tactical",
+          "severity": "ridicat|mediu|scazut",
+          "player": "Player8 sau null",
+          "message": "mesaj scurt pentru antrenor",
+          "evidence": "dovadă scurtă susținută de date",
+          "suggestion": "acțiune specifică"
+        }}
+      ]
+    }},
+    {{
+      "tone": "mixt",
+      "coach": "Andrei",
+      "personality": "echilibrat, pragmatic",
+      "alerts": []
+    }},
+    {{
+      "tone": "pesimist",
+      "coach": "Sorin",
+      "personality": "precaut, defensiv, orientat pe risc",
+      "alerts": []
+    }}
+  ],
   "coach_alerts": [
     {{
       "priority": 1,
       "minute": 45,
       "category": "physical|tactical",
       "severity": "ridicat|mediu|scazut",
-      "player": "Player8 or null",
-      "message": "short coach-facing message",
-      "evidence": "short data-backed evidence",
-      "suggestion": "specific action"
+      "player": "Player8 sau null",
+      "message": "mesaj scurt pentru antrenor",
+      "evidence": "dovadă scurtă susținută de date",
+      "suggestion": "acțiune specifică"
     }}
   ],
-  "summary": "one short halftime/live summary"
+  "summary": "rezumat live scurt în română"
 }}
 
-Input JSON:
+JSON de intrare:
 {json.dumps(payload, ensure_ascii=False)}
 """.strip()
+
+
+def _build_fallback_coach_views(alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    variants = []
+    prefixes = {
+        "optimist": "Oportunitate",
+        "mixt": "Observație",
+        "pesimist": "Risc",
+    }
+    for persona in COACH_PERSONAS:
+        tone = persona["tone"]
+        tone_alerts = []
+        for alert in alerts:
+            copied = dict(alert)
+            copied["message"] = f"{prefixes[tone]}: {copied.get('message') or 'alertă importantă'}"
+            if tone == "optimist":
+                copied["suggestion"] = copied.get("suggestion") or "Folosiți momentul pentru a ajusta rolul fără panică."
+            elif tone == "pesimist":
+                copied["suggestion"] = copied.get("suggestion") or "Pregătiți imediat o soluție de rezervă dacă riscul crește."
+            tone_alerts.append(copied)
+        variants.append({**persona, "alerts": tone_alerts})
+    return variants
+
+
+def _flatten_coach_views(views: list[dict[str, Any]], max_alerts: int) -> list[dict[str, Any]]:
+    for view in views:
+        alerts = view.get("alerts")
+        if isinstance(alerts, list) and alerts:
+            return alerts[:max_alerts]
+    return []
 
 
 def _parse_json_response(text: str) -> dict[str, Any]:

@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sqlite3
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
@@ -22,8 +23,36 @@ def _safe_float(value: object) -> float:
         return 0.0
 
 
+def _is_dataset_dir(path: str) -> bool:
+    if not path or not os.path.isdir(path):
+        return False
+    try:
+        files = os.listdir(path)
+    except OSError:
+        return False
+    return "players (1).json" in files and any(file.endswith("_players_stats.json") for file in files)
+
+
 def _dataset_dir() -> str:
-    return os.getenv("DATASET_DIR", FALLBACK_DATASET_DIR)
+    env_path = os.getenv("DATASET_DIR")
+    if _is_dataset_dir(env_path or ""):
+        return env_path or ""
+
+    base_path = Path(BASE_DIR).resolve()
+    repo_root = base_path.parent
+    uhack_root = repo_root.parent
+    candidates = [
+        FALLBACK_DATASET_DIR,
+        str(repo_root / "Date - meciuri"),
+        str(uhack_root / "Date - meciuri"),
+    ]
+    candidates.extend(str(path) for path in repo_root.glob("Date - meciuri*/Date - meciuri"))
+    candidates.extend(str(path) for path in uhack_root.glob("Date - meciuri*/Date - meciuri"))
+
+    for candidate in candidates:
+        if _is_dataset_dir(candidate):
+            return candidate
+    return env_path or FALLBACK_DATASET_DIR
 
 
 def _connect_db() -> sqlite3.Connection:
@@ -126,8 +155,6 @@ def _build_match_ui_payload(file_name: str, ucj_players: List[Dict[str, object]]
     shots_on_target = sum_stats("shotsOnTarget")
     corners = sum_stats("corners")
     fouls = sum_stats("fouls")
-    minutes = sum_stats("minutesOnField")
-    distance = minutes * 0.115
 
     home_is_ucj = team_a == TEAM_NAME
     ucj_goals, opp_goals = score.split("-")
@@ -136,15 +163,13 @@ def _build_match_ui_payload(file_name: str, ucj_players: List[Dict[str, object]]
     opponent = team_b if home_is_ucj else team_a
 
     pass_acc = round((successful_passes / total_passes) * 100, 1) if total_passes > 0 else 0
-    possession = max(25, min(75, 45 + (pass_acc - 70) * 0.6))
-
     return {
         "id": _match_slug_from_filename(file_name),
         "label": f"{opponent} {ucj_goals}-{opp_goals}",
         "opponent": opponent,
         "score": f"{ucj_goals}-{opp_goals}",
         "date": "Din dataset",
-        "possession": round(possession, 1),
+        "possession": 0,
         "shots": round(shots),
         "shotsOT": round(shots_on_target),
         "passes": round(total_passes),
@@ -153,8 +178,8 @@ def _build_match_ui_payload(file_name: str, ucj_players: List[Dict[str, object]]
         "fouls": round(fouls),
         "yellowCards": round(sum_stats("yellowCards")),
         "redCards": round(sum_stats("redCards")),
-        "distanceCovered": round(distance, 1),
-        "topSpeed": 34.0,
+        "distanceCovered": 0,
+        "topSpeed": 0,
     }
 
 
@@ -348,8 +373,8 @@ def load_ucluj_matches() -> List[Dict[str, object]]:
     conn = _connect_db()
     rows = conn.execute(
         """
-        SELECT id, label, opponent, score, date, possession, shots, shots_ot, passes,
-               pass_acc, corners, fouls, yellow_cards, red_cards, distance_covered, top_speed
+        SELECT id, label, opponent, score, date, shots, shots_ot, passes,
+               pass_acc, corners, fouls, yellow_cards, red_cards
         FROM matches
         ORDER BY id DESC
         """
@@ -362,7 +387,6 @@ def load_ucluj_matches() -> List[Dict[str, object]]:
             "opponent": row["opponent"],
             "score": row["score"],
             "date": row["date"],
-            "possession": row["possession"],
             "shots": row["shots"],
             "shotsOT": row["shots_ot"],
             "passes": row["passes"],
@@ -371,8 +395,6 @@ def load_ucluj_matches() -> List[Dict[str, object]]:
             "fouls": row["fouls"],
             "yellowCards": row["yellow_cards"],
             "redCards": row["red_cards"],
-            "distanceCovered": row["distance_covered"],
-            "topSpeed": row["top_speed"],
         }
         for row in rows
     ]
@@ -499,7 +521,7 @@ def get_match_stats_for_model(match_id: str) -> Optional[Dict[str, float]]:
     conn = _connect_db()
     row = conn.execute(
         """
-        SELECT possession, passes, pass_acc, shots, shots_ot, distance_covered
+        SELECT passes, pass_acc, shots, shots_ot
         FROM matches
         WHERE id = ?
         """,
@@ -509,12 +531,10 @@ def get_match_stats_for_model(match_id: str) -> Optional[Dict[str, float]]:
     if not row:
         return None
     return {
-        "avg_possession": _safe_float(row["possession"]),
         "total_passes": _safe_float(row["passes"]),
         "percent_passAcc": _safe_float(row["pass_acc"]),
         "total_shots": _safe_float(row["shots"]),
         "total_shotsOnTarget": _safe_float(row["shots_ot"]),
-        "total_distance": _safe_float(row["distance_covered"]),
     }
 
 
