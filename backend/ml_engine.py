@@ -32,7 +32,7 @@ class MLEngine:
         
         shap_values = self.explainer.shap_values(df)
         
-        # SHAP versions differ. It can be a list or a 3D array or a 2D array.
+        # Explainer output shape differs between library versions.
         if isinstance(shap_values, list):
             class_1_shap = shap_values[1][0]
         elif len(shap_values.shape) == 3:

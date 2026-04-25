@@ -495,7 +495,8 @@ def get_match_insights(match_id: str) -> Dict[str, List[Dict[str, object]]]:
         SELECT p.name,
                s.goals, s.assists, s.passes, s.successful_passes,
                s.duels, s.duels_won, s.dangerous_own_half_losses,
-               s.losses, s.fouls, s.yellow_cards, s.red_cards
+               s.losses, s.fouls, s.yellow_cards, s.red_cards,
+               s.shots, s.shots_on_target, s.passes_final_third
         FROM player_match_stats s
         JOIN players p ON p.player_id = s.player_id
         WHERE s.match_id = ? AND s.is_ucluj_player = 1
@@ -507,16 +508,88 @@ def get_match_insights(match_id: str) -> Dict[str, List[Dict[str, object]]]:
     if not rows:
         return {"top_strengths": [], "top_weaknesses": []}
 
-    by_strength = sorted(rows, key=_strength_score, reverse=True)
-    by_weakness = sorted(rows, key=_weakness_score, reverse=True)
-    top_strengths = [
-        {"feature": f"{row['name']} - impact pozitiv in acest meci", "impact": round(_strength_score(row), 3)}
-        for row in by_strength[:3]
-    ]
-    top_weaknesses = [
-        {"feature": f"{row['name']} - risc/erori in acest meci", "impact": round(-_weakness_score(row), 3)}
-        for row in by_weakness[:3]
-    ]
+    strengths: List[Dict[str, object]] = []
+    weaknesses: List[Dict[str, object]] = []
+
+    for row in rows:
+        name = row["name"]
+        goals = _safe_float(row["goals"])
+        assists = _safe_float(row["assists"])
+        shots_ot = _safe_float(row["shots_on_target"])
+        passes = _safe_float(row["passes"])
+        successful_passes = _safe_float(row["successful_passes"])
+        passes_final_third = _safe_float(row["passes_final_third"])
+        duels = _safe_float(row["duels"])
+        duels_won = _safe_float(row["duels_won"])
+        losses = _safe_float(row["losses"])
+        dangerous_losses = _safe_float(row["dangerous_own_half_losses"])
+        fouls = _safe_float(row["fouls"])
+        yellow_cards = _safe_float(row["yellow_cards"])
+        red_cards = _safe_float(row["red_cards"])
+
+        if goals or assists or shots_ot:
+            score = goals * 10 + assists * 8 + shots_ot * 2
+            strengths.append({
+                "feature": f"{name} - contribuție ofensivă",
+                "impact": round(score, 3),
+                "evidence": f"{int(goals)} goluri, {int(assists)} pase decisive, {int(shots_ot)} șuturi pe poartă",
+            })
+
+        if passes >= 10 and successful_passes:
+            pass_acc = successful_passes / passes
+            strengths.append({
+                "feature": f"{name} - siguranță la pasă",
+                "impact": round(pass_acc * 100, 3),
+                "evidence": f"{int(successful_passes)}/{int(passes)} pase reușite ({pass_acc * 100:.1f}%)",
+            })
+
+        if duels >= 5 and duels_won:
+            duel_rate = duels_won / duels
+            strengths.append({
+                "feature": f"{name} - dueluri câștigate",
+                "impact": round(duel_rate * 100, 3),
+                "evidence": f"{int(duels_won)}/{int(duels)} dueluri câștigate ({duel_rate * 100:.1f}%)",
+            })
+
+        if passes_final_third:
+            strengths.append({
+                "feature": f"{name} - progresie spre treimea adversă",
+                "impact": round(passes_final_third, 3),
+                "evidence": f"{int(passes_final_third)} pase reușite spre treimea adversă",
+            })
+
+        if dangerous_losses:
+            weaknesses.append({
+                "feature": f"{name} - pierderi periculoase",
+                "impact": round(dangerous_losses, 3),
+                "evidence": f"{int(dangerous_losses)} pierderi în propria jumătate",
+            })
+
+        if losses:
+            weaknesses.append({
+                "feature": f"{name} - pierderi de posesie",
+                "impact": round(losses, 3),
+                "evidence": f"{int(losses)} pierderi totale",
+            })
+
+        missed_passes = max(passes - successful_passes, 0)
+        if passes >= 10 and missed_passes:
+            weaknesses.append({
+                "feature": f"{name} - pase nereușite",
+                "impact": round(missed_passes, 3),
+                "evidence": f"{int(missed_passes)} pase nereușite din {int(passes)}",
+            })
+
+        discipline_score = fouls + yellow_cards * 2 + red_cards * 4
+        if discipline_score:
+            weaknesses.append({
+                "feature": f"{name} - risc disciplinar",
+                "impact": round(discipline_score, 3),
+                "evidence": f"{int(fouls)} faulturi, {int(yellow_cards)} galbene, {int(red_cards)} roșii",
+            })
+
+    top_strengths = sorted(strengths, key=lambda item: float(item["impact"]), reverse=True)[:3]
+    top_weaknesses = sorted(weaknesses, key=lambda item: float(item["impact"]), reverse=True)[:3]
     return {"top_strengths": top_strengths, "top_weaknesses": top_weaknesses}
 
 

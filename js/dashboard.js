@@ -3,32 +3,9 @@
 // =============================================
 
 function initDashboard() {
-    renderNextMatch();
     renderDashboard();
     animateCounters();
     renderFormStrip();
-}
-
-function renderNextMatch() {
-    // Source: LPF calendar surfaced via Google results.
-    const nextMatch = {
-        home: "U Cluj",
-        away: "FC Argeș",
-        venue: "Cluj Arena",
-        dateLabel: "2 Mai 2026",
-        timeLabel: "20:30",
-        iso: "2026-05-02T20:30:00+03:00",
-    };
-
-    window.NEXT_MATCH_ISO = nextMatch.iso;
-    setText(
-        "next-match-teams",
-        `${nextMatch.home} vs ${nextMatch.away}`
-    );
-    setText(
-        "next-match-meta",
-        ` ${nextMatch.venue} · ${nextMatch.dateLabel} · ${nextMatch.timeLabel}`
-    );
 }
 
 function renderDashboard() {
@@ -50,8 +27,6 @@ function renderDashboard() {
     const positiveRate = totalMatches > 0 ? ((totals.wins + totals.draws) / totalMatches) * 100 : 0;
     const avgPassAcc = totalMatches > 0 ? totals.passAcc / totalMatches : 0;
     const ppg = totalMatches > 0 ? points / totalMatches : 0;
-    const unbeatenStreak = getUnbeatenStreak(matches);
-
     setCounter("db-kpi-matches", totalMatches);
     setCounter("db-kpi-points", points);
     setCounter("db-kpi-positive-rate", positiveRate, true, "%");
@@ -61,7 +36,9 @@ function renderDashboard() {
     setText("db-kpi-ppg", `${ppg.toFixed(2)} puncte / meci`);
 
     renderPositiveSummary({
-        unbeatenStreak,
+        wins: totals.wins,
+        draws: totals.draws,
+        totalMatches,
         ppg,
         avgPassAcc,
     });
@@ -74,6 +51,7 @@ function setCounter(id, value, isFloat = false, suffix = "") {
     const safeValue = Number.isFinite(value) ? value : 0;
     const printable = isFloat ? safeValue.toFixed(1) : Math.round(safeValue).toString();
     el.dataset.counter = String(Number(printable));
+    el.dataset.suffix = suffix;
     el.textContent = `${printable}${suffix}`;
 }
 
@@ -82,29 +60,20 @@ function setText(id, text) {
     if (el) el.textContent = text;
 }
 
-function getUnbeatenStreak(matches) {
-    let streak = 0;
-    for (const match of matches) {
-        const [scored, conceded] = String(match.score || "0-0").split("-").map(Number);
-        if (!Number.isFinite(scored) || !Number.isFinite(conceded)) continue;
-        if (scored >= conceded) streak += 1;
-        else break;
-    }
-    return streak;
-}
-
-function renderPositiveSummary({ unbeatenStreak, ppg, avgPassAcc }) {
+function renderPositiveSummary({ wins, draws, totalMatches, ppg, avgPassAcc }) {
     const container = document.getElementById("db-positive-summary");
     if (!container) return;
+    const matchCount = Math.max(Number(totalMatches || 0), 1);
     const items = [
-        { label: "Serie fără înfrângere", value: `${unbeatenStreak} meciuri` },
-        { label: "Medie puncte / meci", value: ppg.toFixed(2) },
-        { label: "Precizie pase", value: `${avgPassAcc.toFixed(1)}%` },
+        { label: "Victorii", value: String(wins), width: (wins / matchCount) * 100 },
+        { label: "Egaluri", value: String(draws), width: (draws / matchCount) * 100 },
+        { label: "Medie puncte / meci", value: ppg.toFixed(2), width: (ppg / 3) * 100 },
+        { label: "Precizie pase", value: `${avgPassAcc.toFixed(1)}%`, width: avgPassAcc },
     ];
     container.innerHTML = items.map((item) => `
         <div class="progress-item">
           <span class="progress-name">${item.label}</span>
-          <div class="progress-track"><div class="progress-fill white" style="width:100%"></div></div>
+          <div class="progress-track"><div class="progress-fill white" style="width:${Math.max(Math.min(item.width, 100), 0)}%"></div></div>
           <span class="progress-val">${item.value}</span>
         </div>
     `).join("");
@@ -151,13 +120,14 @@ function animateCounters() {
     document.querySelectorAll('[data-counter]').forEach(el => {
         const target = parseFloat(el.dataset.counter);
         const isFloat = el.dataset.counter.includes('.');
+        const suffix = el.dataset.suffix || '';
         const duration = 1500;
         const start = performance.now();
         function tick(now) {
             const progress = Math.min((now - start) / duration, 1);
             const eased = 1 - Math.pow(1 - progress, 3);
             const val = eased * target;
-            el.textContent = isFloat ? val.toFixed(1) : Math.round(val);
+            el.textContent = `${isFloat ? val.toFixed(1) : Math.round(val)}${suffix}`;
             if (progress < 1) requestAnimationFrame(tick);
         }
         requestAnimationFrame(tick);
@@ -168,20 +138,23 @@ function renderFormStrip() {
     const strip = document.getElementById('form-strip');
     if (!strip) return;
     const sourceMatches = Array.isArray(window.MATCHES) ? window.MATCHES.slice(0, 10) : [];
-    const positiveForm = sourceMatches
+    const form = sourceMatches
         .map((match) => {
             const [scored, conceded] = String(match.score || "0-0").split("-").map(Number);
             if (!Number.isFinite(scored) || !Number.isFinite(conceded)) return null;
             if (scored > conceded) return "W";
             if (scored === conceded) return "D";
-            return null;
+            return "L";
         })
         .filter(Boolean);
 
-    const form = positiveForm.length > 0 ? positiveForm : ['W', 'W', 'D', 'W', 'D'];
+    if (!form.length) {
+        strip.innerHTML = `<span class="text-muted">Nu există meciuri încărcate din baza de date.</span>`;
+        return;
+    }
     strip.innerHTML = form.map(result => {
-        const colors = { W: '#ffffff', D: '#a1a1aa' };
-        const color = colors[result] || '#ffffff';
+        const colors = { W: '#ffffff', D: '#a1a1aa', L: '#52525b' };
+        const color = colors[result] || '#52525b';
         return `<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.3);border:2px solid ${color};color:${color};font-size:12px;font-weight:700;">${result}</span>`;
     }).join('');
 }

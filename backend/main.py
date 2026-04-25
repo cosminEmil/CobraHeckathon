@@ -45,7 +45,7 @@ except ImportError:
     from ai_gps.model_inference import predict_features, predictions_to_alerts
 
 
-app = FastAPI(title="Rețeta Victoriei - Digital Coach API")
+app = FastAPI(title="Rețeta Victoriei API")
 
 BASE_DIR = Path(__file__).resolve().parent
 GPS_MODEL_PATH = Path(os.getenv("GPS_MODEL_PATH", BASE_DIR / "models" / "fatigue_model.joblib"))

@@ -1,10 +1,7 @@
 // =============================================
-//  UCJ - GPS Tracker Module (Real-time simulation)
+//  UCJ - GPS Tracker Module
 // =============================================
 
-let gpsInterval = null;
-let alertInterval = null;
-let selectedPlayerId = 7; // Hoban default
 let matchMinute = 0;
 let gpsRunning = false;
 let gpsBackendMode = false;
@@ -20,6 +17,39 @@ let metricaPlayback = {
   sourceKey: '',
 };
 let selectedMetricaPlayerId = null;
+let gpsPreviewTimer = null;
+let gpsAutoAnalysis = {
+  enabled: false,
+  nextMinute: null,
+  intervalMinutes: 5,
+  inFlight: false,
+};
+const GPS_PREVIEW_PLAYERS = [
+  // Home, left side: 4-3-3
+  { id: 'H1', team: 'Home', x: 58, y: 220 },
+  { id: 'H2', team: 'Home', x: 128, y: 82 },
+  { id: 'H3', team: 'Home', x: 128, y: 174 },
+  { id: 'H4', team: 'Home', x: 128, y: 266 },
+  { id: 'H5', team: 'Home', x: 128, y: 358 },
+  { id: 'H6', team: 'Home', x: 202, y: 125 },
+  { id: 'H7', team: 'Home', x: 202, y: 220 },
+  { id: 'H8', team: 'Home', x: 202, y: 315 },
+  { id: 'H9', team: 'Home', x: 276, y: 105 },
+  { id: 'H10', team: 'Home', x: 276, y: 220 },
+  { id: 'H11', team: 'Home', x: 276, y: 335 },
+  // Away, right side: 4-3-2-1
+  { id: 'A1', team: 'Away', x: 622, y: 220 },
+  { id: 'A2', team: 'Away', x: 552, y: 82 },
+  { id: 'A3', team: 'Away', x: 552, y: 174 },
+  { id: 'A4', team: 'Away', x: 552, y: 266 },
+  { id: 'A5', team: 'Away', x: 552, y: 358 },
+  { id: 'A6', team: 'Away', x: 478, y: 125 },
+  { id: 'A7', team: 'Away', x: 478, y: 220 },
+  { id: 'A8', team: 'Away', x: 478, y: 315 },
+  { id: 'A9', team: 'Away', x: 404, y: 170 },
+  { id: 'A10', team: 'Away', x: 404, y: 270 },
+  { id: 'A11', team: 'Away', x: 350, y: 220 },
+];
 const COACH_PERSONAS = [
   {
     tone: 'optimist',
@@ -41,52 +71,16 @@ const COACH_PERSONAS = [
   },
 ];
 
-// Player GPS state: pitch is 680x440 SVG
-const GPS_PLAYERS = [
-  // GK
-  { id: 1, number: 1, name: 'Brănescu', pos: 'GK', x: 50, y: 220, baseX: 50, baseY: 220, speed: 0, distance: 0.1, hr: 128, sprints: 0, color: '#ffffff', role: 'gk' },
-  // DEF
-  { id: 2, number: 4, name: 'Burcă', pos: 'DEF', x: 140, y: 110, baseX: 140, baseY: 110, speed: 7.2, distance: 7.1, hr: 158, sprints: 4, color: '#d4d4d8', role: 'def' },
-  { id: 3, number: 5, name: 'Roman', pos: 'DEF', x: 140, y: 185, baseX: 140, baseY: 185, speed: 6.8, distance: 6.8, hr: 154, sprints: 3, color: '#d4d4d8', role: 'def' },
-  { id: 4, number: 6, name: 'Bancu', pos: 'DEF', x: 140, y: 260, baseX: 140, baseY: 260, speed: 7.5, distance: 7.4, hr: 162, sprints: 5, color: '#d4d4d8', role: 'def' },
-  { id: 5, number: 3, name: 'Manea', pos: 'DEF', x: 140, y: 335, baseX: 140, baseY: 335, speed: 8.1, distance: 7.9, hr: 165, sprints: 6, color: '#d4d4d8', role: 'def' },
-  // MID
-  { id: 6, number: 8, name: 'Itu', pos: 'MID', x: 280, y: 150, baseX: 280, baseY: 150, speed: 9.4, distance: 9.8, hr: 172, sprints: 8, color: '#a1a1aa', role: 'mid' },
-  { id: 7, number: 10, name: 'Hoban', pos: 'MID', x: 280, y: 220, baseX: 280, baseY: 220, speed: 8.8, distance: 10.1, hr: 175, sprints: 9, color: '#a1a1aa', role: 'mid' },
-  { id: 8, number: 14, name: 'Callă', pos: 'MID', x: 280, y: 290, baseX: 280, baseY: 290, speed: 9.1, distance: 9.5, hr: 170, sprints: 7, color: '#a1a1aa', role: 'mid' },
-  { id: 9, number: 20, name: 'Vătăjelu', pos: 'MID', x: 380, y: 130, baseX: 380, baseY: 130, speed: 10.2, distance: 10.8, hr: 178, sprints: 11, color: '#a1a1aa', role: 'mid' },
-  { id: 13, number: 22, name: 'Ioniță', pos: 'MID', x: 380, y: 310, baseX: 380, baseY: 310, speed: 9.8, distance: 10.2, hr: 174, sprints: 10, color: '#a1a1aa', role: 'mid' },
-  // ATT
-  { id: 10, number: 7, name: 'Munteanu', pos: 'ATT', x: 500, y: 150, baseX: 500, baseY: 150, speed: 11.4, distance: 8.6, hr: 182, sprints: 14, color: '#71717a', role: 'att' },
-  { id: 11, number: 9, name: 'Eduardo', pos: 'ATT', x: 540, y: 220, baseX: 540, baseY: 220, speed: 10.8, distance: 8.2, hr: 180, sprints: 12, color: '#71717a', role: 'att' },
-  { id: 12, number: 11, name: 'Miculescu', pos: 'ATT', x: 500, y: 290, baseX: 500, baseY: 290, speed: 10.5, distance: 8.4, hr: 179, sprints: 13, color: '#71717a', role: 'att' },
-];
-
-const GPS_ALERTS_POOL = [
-  { type: 'danger', playerId: 7, title: 'Oboseală detectată - Hoban #10', msg: 'Viteza medie scăzută la 6.2 km/h. Recomandare: substituție sau pauza de refacere.' },
-  { type: 'warning', playerId: 4, title: 'Bancu #6 - Ieșit din poziție', msg: 'Fundașul a depășit linia de offside de 3 ori. Recalibrare linie defensivă necesară.' },
-  { type: 'warning', playerId: 9, title: 'Vătăjelu #20 - Supra-pozitionare', msg: 'Suprapopulare în zona centrală. Se recomandă distribuire mai largă a mijlocașilor.' },
-  { type: 'info', playerId: 10, title: 'Munteanu #7 - Presing eficient', msg: 'Recuperare minge în treimea adversă (min 67). Continuați presing înalt pe fundașii adversi.' },
-  { type: 'danger', playerId: 11, title: 'Eduardo - intensitate ridicată', msg: 'Sprinturi repetate și efort susținut. Reduceți expunerea la dueluri sau pregătiți schimbarea.' },
-  { type: 'success', playerId: 6, title: 'Itu #8 - Distanță record', msg: '10.8 km parcurși la min 76 - cel mai activ jucător. Contribuție maximă la pressing.' },
-  { type: 'warning', playerId: 3, title: 'Roman #5 - Zona punct slab', msg: 'Spațiu descoperit pe flancul drept în ultimele 8 minute. Repoziționare urgentă.' },
-  { type: 'info', playerId: 0, title: 'Antrenor secund - sugestie tactică', msg: 'Adversarul atacă sustinut pe flancul stâng. Rotirea fundașului #3 cu 10m mai spre centru.' },
-  { type: 'info', playerId: 12, title: 'Miculescu #11 - serie de sprinturi', msg: '4 sprinturi consecutive în 5 minute. Evaluați necesitatea menținerii intensității.' },
-  { type: 'danger', playerId: 2, title: 'Burcă #4 - Crampe posibile', msg: 'Scădere bruscă viteză maximă cu 15%. Semn de oboseală musculară. Monitorizare atentă.' },
-];
-
-let activeAlertIndices = new Set();
-let shownAlerts = [];
-
 function initGPSTracker() {
   if (gpsRunning) return;
   renderGPSPitch();
-  renderGPSPlayerList();
-  selectGPSPlayer(selectedPlayerId);
+  startGPSPreviewAnimation();
+  renderEmptyGPSState();
+  matchMinute = 0;
+  updateMatchMinute();
   updateTrackingSummary(null);
   initGPSAIUpload();
   initMetricaPlaybackControls();
-  startGPSSimulation();
   gpsRunning = true;
 }
 
@@ -94,23 +88,47 @@ function initGPSTracker() {
 function renderGPSPitch() {
   const svg = document.getElementById('gps-pitch-svg');
   if (!svg) return;
+  svg.innerHTML = getPitchBaseSVG();
+}
 
-  let pitchHTML = getPitchBaseSVG();
+function startGPSPreviewAnimation() {
+  if (gpsPreviewTimer || metricaPlayback.loaded) return;
+  renderGPSPreviewFrame();
+}
 
-  // Player dots
-  GPS_PLAYERS.forEach(p => {
-    pitchHTML += `
-      <g class="player-dot" id="dot-${p.id}" onclick="selectGPSPlayer(${p.id})" style="cursor:pointer">
-        <circle cx="${p.x}" cy="${p.y}" r="13" fill="${p.color}22" stroke="${p.color}" stroke-width="2" opacity="0.9">
-          <animate attributeName="r" values="11;13;11" dur="2.5s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="${p.x}" cy="${p.y}" r="10" fill="${p.color}" style="transition:all 0.3s ease"/>
-        <text x="${p.x}" y="${p.y}" class="player-label" font-family="Inter,sans-serif" font-size="8" font-weight="700">${p.number}</text>
-      </g>
-    `;
-  });
+function stopGPSPreviewAnimation() {
+  if (gpsPreviewTimer) cancelAnimationFrame(gpsPreviewTimer);
+  gpsPreviewTimer = null;
+}
 
-  svg.innerHTML = pitchHTML;
+function renderGPSPreviewFrame() {
+  if (metricaPlayback.loaded) {
+    stopGPSPreviewAnimation();
+    return;
+  }
+  const svg = document.getElementById('gps-pitch-svg');
+  if (!svg) return;
+  const playersHtml = GPS_PREVIEW_PLAYERS.map((player) => {
+    const radius = player.team === 'Home' ? 9 : 8;
+    return `
+      <g class="metrica-dot">
+        <circle class="metrica-player ${player.team.toLowerCase()}" cx="${player.x}" cy="${player.y}" r="${radius}" opacity="0.9" stroke-width="1.5"/>
+        <text x="${player.x}" y="${player.y}" text-anchor="middle" dominant-baseline="central" font-size="7" fill="${player.team === 'Home' ? '#000' : '#fff'}" font-weight="800">${player.id.slice(1)}</text>
+      </g>`;
+  }).join('');
+  const ballHtml = `<circle class="metrica-ball" cx="340" cy="220" r="5.5"/>`;
+  svg.innerHTML = `${getPitchBaseSVG()}${playersHtml}${ballHtml}`;
+}
+
+function renderEmptyGPSState() {
+  const list = document.getElementById('gps-player-list');
+  const panel = document.getElementById('player-detail-panel');
+  const alerts = document.getElementById('gps-alerts-panel');
+  const source = document.getElementById('gps-alert-source');
+  if (list) list.innerHTML = `<div class="text-muted">Încarcă CSV-urile Metrica pentru a afișa jucători reali din tracking.</div>`;
+  if (panel) panel.innerHTML = `<div style="color:var(--text-3);font-size:13px">Încarcă CSV-urile Metrica pentru detalii tracking.</div>`;
+  if (alerts) alerts.innerHTML = `<div style="color:var(--text-3);font-size:13px">Așteptare CSV-uri pentru analiza AI-GPS.</div>`;
+  if (source) source.textContent = 'Date CSV necesare';
 }
 
 function getPitchBaseSVG() {
@@ -152,188 +170,13 @@ function getPitchBaseSVG() {
   `;
 }
 
-function generateOpponentPlayers() {
-  const opp = [
-    { x: 560, y: 110 }, { x: 560, y: 185 }, { x: 560, y: 260 }, { x: 560, y: 335 },
-    { x: 440, y: 130 }, { x: 440, y: 220 }, { x: 440, y: 310 },
-    { x: 400, y: 160 }, { x: 400, y: 280 },
-    { x: 500, y: 180 }, { x: 500, y: 260 },
-  ];
-  return opp.map(o => `
-    <circle cx="${o.x}" cy="${o.y}" r="9" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-  `).join('');
-}
-
-// ── GPS Simulation Loop ──
-function startGPSSimulation() {
-  if (gpsInterval) clearInterval(gpsInterval);
-  if (alertInterval) clearInterval(alertInterval);
-
-  matchMinute = 60;
-
-  gpsInterval = setInterval(() => {
-    if (metricaPlayback.loaded) return;
-    matchMinute += 0.25;
-    if (matchMinute > 90) matchMinute = 60;
-
-    GPS_PLAYERS.forEach(p => {
-      // Random movement within role zones
-      const range = p.role === 'gk' ? 15 : p.role === 'att' ? 60 : 50;
-      p.x = clamp(p.baseX + (Math.random() - 0.5) * range * 2, 25, 655);
-      p.y = clamp(p.baseY + (Math.random() - 0.5) * range * 1.5, 25, 415);
-
-      // Update live stats
-      p.speed = +(Math.random() * 6 + (p.role === 'gk' ? 1 : p.role === 'att' ? 7 : 5)).toFixed(1);
-      p.distance = +(p.distance + p.speed * 0.0007).toFixed(2);
-      p.hr = Math.round(p.hr + (Math.random() - 0.5) * 4);
-      p.hr = clamp(p.hr, 130, 195);
-      if (Math.random() < 0.015) p.sprints++;
-
-      updateDot(p);
-    });
-
-    updateMatchMinute();
-    updateSelectedPlayerStats();
-    updateTeamStats();
-  }, 600);
-
-  // Alert injection every 12 seconds
-  alertInterval = setInterval(() => {
-    if (!gpsBackendMode) injectRandomAlert();
-  }, 12000);
-
-  // First alert immediately
-  setTimeout(() => { if (!gpsBackendMode) injectRandomAlert(); }, 2000);
-  setTimeout(() => { if (!gpsBackendMode) injectRandomAlert(); }, 6000);
-}
-
-function updateDot(p) {
-  const dot = document.getElementById(`dot-${p.id}`);
-  if (!dot) return;
-  const [ring, fill, label] = dot.children;
-  const cx = p.x, cy = p.y;
-  ring.setAttribute('cx', cx); ring.setAttribute('cy', cy);
-  fill.setAttribute('cx', cx); fill.setAttribute('cy', cy);
-  label.setAttribute('x', cx); label.setAttribute('y', cy);
-  dot.style.transform = '';
-}
-
-function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
-
 function updateMatchMinute() {
   const el = document.getElementById('gps-match-minute');
   if (el) el.textContent = Math.floor(matchMinute) + "'";
 }
 
-// ── Player Selection ──
-function selectGPSPlayer(id) {
-  selectedPlayerId = id;
-  const player = GPS_PLAYERS.find(p => p.id === id);
-  if (!player) return;
-
-  // Highlight in list
-  document.querySelectorAll('.gps-player-item').forEach(el => el.classList.remove('active-player'));
-  const listItem = document.getElementById(`gps-li-${id}`);
-  if (listItem) listItem.classList.add('active-player');
-
-  updateSelectedPlayerStats(player);
-}
-
-function updateSelectedPlayerStats(player) {
-  const p = player || GPS_PLAYERS.find(p => p.id === selectedPlayerId);
-  if (!p) return;
-  const panel = document.getElementById('player-detail-panel');
-  if (!panel) return;
-
-  const speedColor = '#fff';
-
-  panel.innerHTML = `
-    <div class="flex-between mb-16">
-      <div>
-        <div class="player-detail-name">${p.name}</div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
-          <span class="pos-badge ${p.role}">${p.pos}</span>
-          <span class="text-muted">#${p.number}</span>
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:#fff">${Math.floor(matchMinute)}'</div>
-        <div style="font-size:10px;color:var(--text-3);letter-spacing:1px">MINUT</div>
-      </div>
-    </div>
-    <div class="mini-stat-grid">
-      <div class="mini-stat">
-        <div class="ms-val" style="color:${speedColor}">${p.speed}</div>
-        <div class="ms-lbl">km/h Viteză</div>
-      </div>
-      <div class="mini-stat">
-        <div class="ms-val">${p.distance}</div>
-        <div class="ms-lbl">km Distanță</div>
-      </div>
-      <div class="mini-stat">
-        <div class="ms-val">${p.pos}</div>
-        <div class="ms-lbl">Rol</div>
-      </div>
-      <div class="mini-stat">
-        <div class="ms-val">${p.sprints}</div>
-        <div class="ms-lbl">Sprinturi</div>
-      </div>
-    </div>
-    <div style="margin-top:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:12px;color:var(--text-3)">Intensitate efort</span>
-        <span style="font-size:12px;font-weight:600;color:#fff">${Math.min(Math.round(p.speed / 14 * 100), 100)}%</span>
-      </div>
-      <div class="progress-track"><div class="progress-fill" style="width:${Math.min(Math.round(p.speed / 14 * 100), 100)}%"></div></div>
-    </div>
-    <div style="margin-top:16px;padding:10px 12px;background:rgba(0,0,0,0.3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-2)">
-      ${getPlayerAITip(p)}
-    </div>
-  `;
-}
-
-function getPlayerAITip(p) {
-  if (p.aiRisk && p.aiRisk !== 'low') {
-    return `<strong>Model AI-GPS:</strong> risc ${p.aiRisk}, fatigue score ${p.fatigueScore ?? '--'}/100. Verificați evoluția în următoarele minute.`;
-  }
-  if (p.speed < 5 && p.role !== 'gk') return `Viteză scăzută detectată. Evaluați starea fizică și considerați substituție.`;
-  if (p.sprints > 12) return `${p.sprints} sprinturi — efort maxim. Monitorizați recuperarea musculară.`;
-  if (p.role === 'att') return `Mențineti pozitia între linii pentru a crea spațiu de primire.`;
-  if (p.role === 'def') return `Linia defensivă stabilă. Coordonați pressing-ul cu mijlocașii.`;
-  return `Parametri în limite normale. Mențineți ritmul actual.`;
-}
-
 function updateTeamStats() {
   updateTrackingSummary(metricaPlayback.loaded ? metricaPlayback.frames[metricaPlayback.index] : null);
-}
-
-// ── Player List ──
-function renderGPSPlayerList() {
-  const list = document.getElementById('gps-player-list');
-  if (!list) return;
-  list.innerHTML = GPS_PLAYERS.map(p => `
-    <div class="gps-player-item" id="gps-li-${p.id}" onclick="selectGPSPlayer(${p.id})">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:28px;height:28px;border-radius:50%;background:${p.color}22;border:1.5px solid ${p.color};display:flex;align-items:center;justify-content:center;font-family:Rajdhani,sans-serif;font-weight:700;font-size:11px;color:${p.color};flex-shrink:0">${p.number}</div>
-        <div>
-          <div style="font-size:13px;font-weight:500;color:var(--text-1)">${p.name}</div>
-          <span class="pos-badge ${p.role}" style="font-size:9px;padding:1px 6px">${p.pos}</span>
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:13px;font-weight:600;color:var(--text-1)" id="li-speed-${p.id}">${p.speed}</div>
-        <div style="font-size:10px;color:var(--text-3)">km/h</div>
-      </div>
-    </div>
-  `).join('');
-
-  // Update speed in list periodically
-  setInterval(() => {
-    GPS_PLAYERS.forEach(p => {
-      const el = document.getElementById(`li-speed-${p.id}`);
-      if (el) el.textContent = p.speed;
-    });
-  }, 800);
 }
 
 // ── Metrica playback ──
@@ -362,6 +205,7 @@ function initMetricaPlaybackControls() {
 async function loadMetricaPlaybackFromFiles(homeFile, awayFile) {
   const sourceKey = `${homeFile.name}:${homeFile.lastModified}|${awayFile.name}:${awayFile.lastModified}`;
   if (metricaPlayback.loaded && metricaPlayback.sourceKey === sourceKey) return;
+  stopGPSPreviewAnimation();
   setMetricaStatus('Se încarcă tracking-ul pe teren...');
 
   const [homeFrames, awayFrames] = await Promise.all([
@@ -390,7 +234,8 @@ async function loadMetricaPlaybackFromFiles(homeFile, awayFile) {
   };
   selectedMetricaPlayerId = frames[0]?.players?.[0]?.id || null;
   configureMetricaControls();
-  renderMetricaFrame();
+  if (frames.length) renderMetricaFrame();
+  else startGPSPreviewAnimation();
   setMetricaStatus(frames.length ? `${frames.length} cadre încărcate din Metrica` : 'Nu s-au putut citi cadrele Metrica');
 }
 
@@ -532,6 +377,7 @@ function renderMetricaFrame() {
   updateTrackingSummary(frame);
   renderMetricaPlayerList(frame);
   updateSelectedMetricaPlayerStats(frame);
+  maybeRunGPSAutoAnalysis(frame.time / 60);
 }
 
 function updateMetricaControls(frame) {
@@ -628,29 +474,86 @@ function updateSelectedMetricaPlayerStats(frame) {
 // ── Alerts ──
 function initGPSAIUpload() {
   const form = document.getElementById('gps-ai-form');
-  if (!form || form.dataset.bound === 'true') return;
-  form.dataset.bound = 'true';
-  form.addEventListener('submit', analyzeUploadedGPSData);
+  if (form && form.dataset.bound !== 'true') {
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', analyzeUploadedGPSData);
+  }
+  const loadMatch = document.getElementById('gps-load-match');
+  if (loadMatch && loadMatch.dataset.bound !== 'true') {
+    loadMatch.dataset.bound = 'true';
+    loadMatch.addEventListener('click', loadGPSMatchForPlayback);
+  }
+  const autoToggle = document.getElementById('gps-auto-toggle');
+  if (autoToggle && autoToggle.dataset.bound !== 'true') {
+    autoToggle.dataset.bound = 'true';
+    autoToggle.addEventListener('click', toggleGPSAutoAnalysis);
+  }
 }
 
 async function analyzeUploadedGPSData(event) {
   event.preventDefault();
-
-  const homeFile = document.getElementById('gps-tracking-home')?.files?.[0];
-  const awayFile = document.getElementById('gps-tracking-away')?.files?.[0];
-  const eventsFile = document.getElementById('gps-events')?.files?.[0];
-  const team = document.getElementById('gps-team')?.value || 'Home';
   const reportMinute = Number(document.getElementById('gps-report-minute')?.value || 45);
-  const status = document.getElementById('gps-ai-status');
+  await runGPSAnalysisAtMinute(reportMinute, 'manual');
+}
+
+function getGPSAnalysisInputs() {
+  return {
+    homeFile: document.getElementById('gps-tracking-home')?.files?.[0],
+    awayFile: document.getElementById('gps-tracking-away')?.files?.[0],
+    eventsFile: document.getElementById('gps-events')?.files?.[0],
+    team: document.getElementById('gps-team')?.value || 'Home',
+  };
+}
+
+async function loadGPSMatchForPlayback() {
+  const { homeFile, awayFile } = getGPSAnalysisInputs();
+  if (!homeFile || !awayFile) {
+    setGPSAIStatus('Selectează Tracking Home și Tracking Away.', 'warning');
+    return false;
+  }
+
+  try {
+    setGPSAIStatus('Se încarcă meciul pentru replay...', 'loading');
+    await loadMetricaPlaybackFromFiles(homeFile, awayFile);
+    if (!metricaPlayback.loaded) {
+      setGPSAIStatus('Nu s-au putut citi fișierele tracking.', 'danger');
+      return false;
+    }
+    setGPSAIStatus('Meci încărcat · poți porni simularea.', 'success');
+    setGPSAutoStatus('Replay încărcat. Poți solicita analiză manuală sau porni auto.');
+    return true;
+  } catch (error) {
+    setGPSAIStatus('Eroare la încărcarea meciului.', 'danger');
+    renderGPSAIError(error);
+    return false;
+  }
+}
+
+function selectedTrackingSourceKey() {
+  const { homeFile, awayFile } = getGPSAnalysisInputs();
+  if (!homeFile || !awayFile) return '';
+  return `${homeFile.name}:${homeFile.lastModified}|${awayFile.name}:${awayFile.lastModified}`;
+}
+
+function isSelectedMatchLoaded() {
+  return metricaPlayback.loaded && metricaPlayback.sourceKey === selectedTrackingSourceKey();
+}
+
+async function runGPSAnalysisAtMinute(reportMinute, mode = 'manual') {
+  const { homeFile, awayFile, eventsFile, team } = getGPSAnalysisInputs();
 
   if (!homeFile || !awayFile || !eventsFile) {
     setGPSAIStatus('Selectează toate cele 3 CSV-uri.', 'warning');
-    return;
+    return null;
   }
 
   gpsBackendMode = true;
-  if (alertInterval) clearInterval(alertInterval);
-  setGPSAIStatus('Se încarcă replay-ul și analiza...', 'loading');
+  setGPSAIStatus(
+    mode === 'auto'
+      ? `Analiză automată la minutul ${Math.round(reportMinute)}...`
+      : 'Se încarcă replay-ul și analiza...',
+    'loading'
+  );
   renderGPSLoadingAlerts();
 
   const formData = new FormData();
@@ -663,7 +566,9 @@ async function analyzeUploadedGPSData(event) {
   formData.append('use_gemini', 'true');
 
   try {
-    await loadMetricaPlaybackFromFiles(homeFile, awayFile);
+    if (!isSelectedMatchLoaded()) {
+      await loadMetricaPlaybackFromFiles(homeFile, awayFile);
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/v1/gps/analyze`, {
       method: 'POST',
@@ -677,12 +582,87 @@ async function analyzeUploadedGPSData(event) {
 
     const data = await response.json();
     renderGPSAIResult(data);
-    setGPSAIStatus(`Analiză completă · ${data.counts?.coach_alerts ?? 0} alerte`, 'success');
+    setGPSAIStatus(`${mode === 'auto' ? 'Auto' : 'Analiză'} completă · ${data.counts?.coach_alerts ?? 0} alerte`, 'success');
+    return data;
   } catch (error) {
     gpsBackendMode = false;
     setGPSAIStatus('Eroare backend AI-GPS', 'danger');
     renderGPSAIError(error);
+    return null;
   }
+}
+
+async function toggleGPSAutoAnalysis() {
+  if (gpsAutoAnalysis.enabled) {
+    stopGPSAutoAnalysis('Analiza automată este oprită.');
+    return;
+  }
+
+  const { homeFile, awayFile, eventsFile } = getGPSAnalysisInputs();
+  if (!homeFile || !awayFile || !eventsFile) {
+    setGPSAIStatus('Selectează toate cele 3 CSV-uri.', 'warning');
+    return;
+  }
+
+  const interval = Number(document.getElementById('gps-auto-interval')?.value || 5);
+  if (!Number.isFinite(interval) || interval < 1) {
+    setGPSAIStatus('Intervalul auto trebuie să fie cel puțin 1 minut.', 'warning');
+    return;
+  }
+
+  if (!isSelectedMatchLoaded()) {
+    const loaded = await loadGPSMatchForPlayback();
+    if (!loaded) return;
+  }
+  gpsAutoAnalysis = {
+    enabled: true,
+    nextMinute: Number(document.getElementById('gps-report-minute')?.value || 1),
+    intervalMinutes: interval,
+    inFlight: false,
+  };
+  setGPSAutoStatus(`Auto activ · următoarea analiză la minutul ${Math.round(gpsAutoAnalysis.nextMinute)}`);
+  const toggle = document.getElementById('gps-auto-toggle');
+  if (toggle) toggle.textContent = 'Oprește auto';
+  maybeRunGPSAutoAnalysis(matchMinute);
+}
+
+function stopGPSAutoAnalysis(message = 'Analiza automată este oprită.') {
+  gpsAutoAnalysis.enabled = false;
+  gpsAutoAnalysis.inFlight = false;
+  const toggle = document.getElementById('gps-auto-toggle');
+  if (toggle) toggle.textContent = 'Pornește auto';
+  setGPSAutoStatus(message);
+}
+
+function maybeRunGPSAutoAnalysis(currentMinute) {
+  if (!gpsAutoAnalysis.enabled || gpsAutoAnalysis.inFlight) return;
+  if (!Number.isFinite(currentMinute) || currentMinute + 0.05 < gpsAutoAnalysis.nextMinute) return;
+
+  const targetMinute = Math.max(1, Math.round(gpsAutoAnalysis.nextMinute));
+  gpsAutoAnalysis.inFlight = true;
+  const minuteInput = document.getElementById('gps-report-minute');
+  if (minuteInput) minuteInput.value = String(targetMinute);
+  setGPSAutoStatus(`Se solicită analiza pentru minutul ${targetMinute}...`);
+
+  runGPSAnalysisAtMinute(targetMinute, 'auto').finally(() => {
+    gpsAutoAnalysis.inFlight = false;
+    gpsAutoAnalysis.nextMinute += gpsAutoAnalysis.intervalMinutes;
+    while (gpsAutoAnalysis.nextMinute <= currentMinute) {
+      gpsAutoAnalysis.nextMinute += gpsAutoAnalysis.intervalMinutes;
+    }
+    if (gpsAutoAnalysis.nextMinute > 120) {
+      stopGPSAutoAnalysis('Analiza automată s-a încheiat.');
+      return;
+    }
+    if (gpsAutoAnalysis.enabled) {
+      setGPSAutoStatus(`Auto activ · următoarea analiză la minutul ${Math.round(gpsAutoAnalysis.nextMinute)}`);
+    }
+  });
+}
+
+function setGPSAutoStatus(text) {
+  const el = document.getElementById('gps-auto-status');
+  if (el) el.textContent = text;
 }
 
 function setGPSAIStatus(text, type = 'info') {
@@ -849,15 +829,8 @@ function renderGPSAIError(error) {
 }
 
 function updateGPSPlayerRisks(predictions) {
-  if (metricaPlayback.loaded) return;
-  predictions.forEach(prediction => {
-    const number = String(prediction.player || '').replace(/\D/g, '');
-    const player = GPS_PLAYERS.find(p => String(p.number) === number || String(p.id) === number);
-    if (!player) return;
-    player.aiRisk = prediction.risk_level;
-    player.fatigueScore = prediction.fatigue_score;
-  });
-  updateSelectedPlayerStats();
+  // Metrica sample tracking is anonymous, so model predictions are shown in alert cards,
+  // not attached to invented player identities.
 }
 
 function severityToAlertClass(severity) {
@@ -875,19 +848,4 @@ function escapeHTML(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
-}
-
-function injectRandomAlert() {
-  const unused = GPS_ALERTS_POOL.filter((_, i) => !activeAlertIndices.has(i));
-  if (unused.length === 0) { activeAlertIndices.clear(); return; }
-  const alert = unused[Math.floor(Math.random() * unused.length)];
-  const idx = GPS_ALERTS_POOL.indexOf(alert);
-  activeAlertIndices.add(idx);
-
-  shownAlerts.unshift(alert);
-  if (shownAlerts.length > 6) shownAlerts.pop();
-
-  const panel = document.getElementById('gps-alerts-panel');
-  if (!panel) return;
-  panel.innerHTML = renderCoachColumns(buildLocalCoachViews(shownAlerts), Math.floor(matchMinute));
 }

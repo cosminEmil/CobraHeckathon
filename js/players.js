@@ -5,6 +5,10 @@
 function renderPlayers() {
   const grid = document.getElementById('players-grid');
   if (!grid) return;
+  if (!Array.isArray(window.UCJ_SQUAD) || !window.UCJ_SQUAD.length) {
+    grid.innerHTML = `<div class="card" style="grid-column:1 / -1"><div class="text-muted">Nu există jucători încărcați din baza de date.</div></div>`;
+    return;
+  }
   grid.innerHTML = (window.UCJ_SQUAD || []).map(p => {
     const eff = +(p.goals * 10 + p.assists * 8 + p.passes * 0.1).toFixed(0);
     return `
@@ -13,7 +17,7 @@ function renderPlayers() {
       <div class="player-stat-row" style="border-top:1px solid var(--border);padding-top:12px">
         <div class="player-stat-mini"><div class="val">${p.goals}</div><div class="lbl">Goluri</div></div>
         <div class="player-stat-mini"><div class="val">${p.assists}</div><div class="lbl">Asisturi</div></div>
-        <div class="player-stat-mini"><div class="val">${eff}</div><div class="lbl">Eficiență</div></div>
+        <div class="player-stat-mini"><div class="val">${eff}</div><div class="lbl">Indice</div></div>
       </div>
     </div>`;
   }).join('');
@@ -33,7 +37,6 @@ function openPlayerModal(id) {
         <div style="font-size:22px;font-weight:700;color:var(--text-1)">${p.name}</div>
         <div style="margin-top:6px"><span class="text-muted">ID dataset ${p.id}</span></div>
       </div>
-      <canvas id="modal-radar" width="200" height="200"></canvas>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
       ${[
@@ -45,7 +48,7 @@ function openPlayerModal(id) {
     </div>
     <div style="padding:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);margin-bottom:20px">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:13px;color:var(--text-2)">Scor Eficiență AI (formula: G×10 + A×8 + P×0.1)</span>
+        <span style="font-size:13px;color:var(--text-2)">Indice calculat din DB (G×10 + A×8 + P×0.1)</span>
         <span style="font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:#fff">${eff}</span>
       </div>
     </div>
@@ -58,43 +61,6 @@ function openPlayerModal(id) {
 
   modal.style.display = 'flex';
   requestAnimationFrame(() => modal.classList.add('visible'));
-
-  setTimeout(() => {
-    const ctx = document.getElementById('modal-radar');
-    if (!ctx) return;
-    new Chart(ctx, {
-      type: 'radar',
-      data: {
-        labels: ['Gol', 'Asist', 'Pase', 'Prezență', 'Eficiență', 'Consistență'],
-        datasets: [{
-          data: [
-            Math.min(p.goals / 15 * 100, 100),
-            Math.min(p.assists / 10 * 100, 100),
-            Math.min(p.passes / 560 * 100, 100),
-            Math.min(p.matches / 22 * 100, 100),
-            Math.min(eff / 175 * 100, 100),
-            Math.min((p.matches / 22 * 50 + eff / 175 * 50), 100),
-          ],
-          backgroundColor: 'rgba(255,255,255,0.05)',
-          borderColor: 'rgba(255,255,255,0.7)',
-          pointBackgroundColor: '#fff',
-          borderWidth: 2, pointRadius: 3,
-        }]
-      },
-      options: {
-        responsive: false, plugins: { legend: { display: false } },
-        scales: {
-          r: {
-            ticks: { display: false },
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            angleLines: { color: 'rgba(255,255,255,0.05)' },
-            pointLabels: { color: '#52525b', font: { size: 10 } },
-            min: 0, max: 100,
-          }
-        }
-      }
-    });
-  }, 50);
 }
 
 function closeModal() {

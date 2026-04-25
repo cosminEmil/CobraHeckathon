@@ -33,15 +33,8 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-const FALLBACK_SQUAD = [
-  { id: 1, number: 1, name: 'Test Goalkeeper', pos: 'GK', age: 0, goals: 0, assists: 0, passes: 180, matches: 10 },
-  { id: 2, number: 2, name: 'Test Defender', pos: 'DEF', age: 0, goals: 1, assists: 1, passes: 360, matches: 10 },
-  { id: 3, number: 3, name: 'Test Midfielder', pos: 'MID', age: 0, goals: 3, assists: 4, passes: 520, matches: 10 },
-  { id: 4, number: 4, name: 'Test Attacker', pos: 'ATT', age: 0, goals: 7, assists: 2, passes: 200, matches: 10 },
-];
-
 window.MATCHES = [];
-window.UCJ_SQUAD = [...FALLBACK_SQUAD];
+window.UCJ_SQUAD = [];
 window.PLAYER_INSIGHTS = { top_strengths: [], top_weaknesses: [] };
 
 async function loadBackendData() {
@@ -70,7 +63,7 @@ async function loadBackendData() {
       };
     }
   } catch (err) {
-    // keep fallbacks when backend is offline
+    // Backend offline: keep empty data instead of showing fabricated statistics.
   }
 }
 

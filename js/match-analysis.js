@@ -88,37 +88,6 @@ function renderMatchStats(match) {
         if (el) el.innerHTML = `<div class="stat-value">${s.val}</div><div class="stat-label">${s.label}</div>`;
     });
 
-    const shotAccuracy = match.shots > 0 ? match.shotsOT / match.shots : 0;
-    const score = Math.round(
-        (match.passAcc / 100) * 35 +
-        shotAccuracy * 30 +
-        Math.min(match.shots / 18, 1) * 20 +
-        Math.min(match.corners / 10, 1) * 15
-    );
-    renderScoreRing(score);
-}
-
-function renderScoreRing(score) {
-    const el = document.getElementById('perf-score-ring');
-    if (!el) return;
-    const circumference = 2 * Math.PI * 54;
-    const dashoffset = circumference * (1 - score / 100);
-    // Monochrome: full white for high, dimmer for low
-    const opacity = score >= 70 ? 1 : score >= 50 ? 0.7 : 0.45;
-    el.innerHTML = `
-    <div class="score-ring">
-      <svg width="140" height="140" viewBox="0 0 140 140">
-        <circle cx="70" cy="70" r="54" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"/>
-        <circle cx="70" cy="70" r="54" fill="none" stroke="rgba(255,255,255,${opacity})" stroke-width="10"
-          stroke-dasharray="${circumference}" stroke-dashoffset="${dashoffset}"
-          stroke-linecap="round" transform="rotate(-90 70 70)"
-          style="transition:stroke-dashoffset 1.5s cubic-bezier(0.22,1,0.36,1)"/>
-        <text x="70" y="66" text-anchor="middle" font-size="30" font-weight="800" fill="rgba(255,255,255,${opacity})" font-family="Rajdhani,sans-serif">${score}</text>
-        <text x="70" y="84" text-anchor="middle" font-size="11" fill="#52525b" font-family="Inter,sans-serif">SCOR</text>
-      </svg>
-      <div class="score-label">Performanță meci</div>
-    </div>
-  `;
 }
 
 function renderLineBreakersChart(matchId) {
@@ -211,63 +180,55 @@ async function renderAIRecommendations(match) {
     const panel = document.getElementById('ai-recommendations');
     if (!panel) return;
 
-    // Show a loading state
     panel.innerHTML = `
       <div style="color:var(--text-3); font-size:13px; text-align:center; padding: 20px;">
-        <svg style="animation: spin 1s linear infinite; height: 24px; width: 24px; color: var(--gold);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <br/><br/>
-        Procesare Insight-uri AI & Generare Tactică Gemini...
+        Se încarcă insight-urile din baza de date...
       </div>
-      <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
     `;
 
     try {
-        const statsPayload = {
-            "total_passes": match.passes,
-            "percent_passAcc": match.passAcc,
-            "total_shots": match.shots,
-            "total_shotsOnTarget": match.shotsOT
-        };
-
-        const response = await fetch(`${API_BASE}/diagnostics`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stats: statsPayload })
-        });
-
-        if (!response.ok) throw new Error('API Response Error');
+        const response = await fetch(`${API_BASE}/matches/${encodeURIComponent(match.id)}/insights`);
+        if (!response.ok) throw new Error('Nu s-au putut încărca insight-urile din DB');
         const data = await response.json();
 
-        const recs = [];
-        
-        if (data.tactical_advice) {
-            recs.push({ type: 'success', title: 'Digital Coach (Gemini)', msg: data.tactical_advice });
-        }
-        
-        if (data.top_strengths && data.top_strengths.length > 0) {
-            const sHtml = data.top_strengths.map(s => `<li>${s.feature} <br><span style="color:#22c55e">(Impact +${s.impact.toFixed(3)})</span></li>`).join('');
-            recs.push({ type: 'info', title: 'Top Puncte Forte (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${sHtml}</ul>` });
-        }
-
-        if (data.top_weaknesses && data.top_weaknesses.length > 0) {
-            const wHtml = data.top_weaknesses.map(s => `<li>${s.feature} <br><span style="color:#ef4444">(Impact ${s.impact.toFixed(3)})</span></li>`).join('');
-            recs.push({ type: 'danger', title: 'Top Puncte Slabe (SHAP)', msg: `<ul style="margin:5px 0 0 16px;padding:0">${wHtml}</ul>` });
-        }
-
-        panel.innerHTML = recs.map(r => `
-        <div class="alert-item ${r.type}">
-          <div class="alert-content"><strong>${r.title}</strong>${r.msg}</div>
-        </div>`).join('');
-        
+        panel.innerHTML = [
+            renderDbInsightCard('info', 'Puncte forte din baza de date', data.top_strengths || []),
+            renderDbInsightCard('danger', 'Puncte de risc din baza de date', data.top_weaknesses || []),
+        ].join('');
     } catch (error) {
         panel.innerHTML = `
         <div class="alert-item danger">
-          <div class="alert-content"><strong>Eroare Conexiune</strong>Nu se poate accesa Backend-ul pe port 8000. Startați serverul Uvicorn!</div>
+          <div class="alert-content"><strong>Date indisponibile</strong>Nu se pot încărca insight-urile calculate din baza de date pentru acest meci.</div>
         </div>`;
     }
+}
+
+function renderDbInsightCard(type, title, items) {
+    if (!items.length) {
+        return `
+        <div class="alert-item ${type}">
+          <div class="alert-content"><strong>${title}</strong>Nu există suficiente date în baza SQLite pentru această categorie.</div>
+        </div>`;
+    }
+    const list = items.map(item => `
+      <li>
+        ${escapeHTML(item.feature)}
+        ${item.evidence ? `<br><span style="color:var(--text-2)">${escapeHTML(item.evidence)}</span>` : ''}
+      </li>
+    `).join('');
+    return `
+    <div class="alert-item ${type}">
+      <div class="alert-content"><strong>${title}</strong><ul style="margin:5px 0 0 16px;padding:0">${list}</ul></div>
+    </div>`;
+}
+
+function escapeHTML(value) {
+    return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
 }
 
 function renderEfficiencyScores() {
@@ -276,7 +237,6 @@ function renderEfficiencyScores() {
     const sorted = [...(currentMatchPlayers || [])]
         .map(p => ({
             ...p,
-            number: '-',
             eff: +(p.goals * 10 + p.assists * 8 + p.passes * 0.1).toFixed(1)
         }))
         .sort((a, b) => b.eff - a.eff)
@@ -287,11 +247,9 @@ function renderEfficiencyScores() {
       <td style="padding:11px 8px;color:var(--text-3);width:32px">${i + 1}</td>
       <td style="padding:11px 8px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:30px;height:30px;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-family:Rajdhani,sans-serif;font-weight:700;color:#fff;font-size:13px">${p.number}</div>
           <span style="font-weight:500;font-size:13.5px">${p.name}</span>
         </div>
       </td>
-      <td style="padding:11px 8px;"><span class="pos-badge ${p.pos.toLowerCase()}">${p.pos}</span></td>
       <td style="padding:11px 8px;color:var(--text-2);text-align:center">${p.goals}</td>
       <td style="padding:11px 8px;color:var(--text-2);text-align:center">${p.assists}</td>
       <td style="padding:11px 8px;color:var(--text-2);text-align:center">${p.passes}</td>
