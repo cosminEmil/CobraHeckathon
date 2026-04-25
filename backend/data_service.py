@@ -8,12 +8,14 @@ from typing import Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 TEAM_NAME = "Universitatea Cluj"
-FALLBACK_DATASET_DIR = r"E:/Uhack/datasets/Date - meciuri-20260424T163501Z-3-001/Date - meciuri"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.getenv("APP_DB_PATH", os.path.join(BASE_DIR, "data", "ucluj.sqlite3"))
+BACKEND_DIR = Path(BASE_DIR).resolve()
+PROJECT_ROOT = BACKEND_DIR.parent
+
+load_dotenv(BACKEND_DIR / ".env")
+
+DB_PATH = os.getenv("APP_DB_PATH", str(BACKEND_DIR / "data" / "ucluj.sqlite3"))
 
 
 def _safe_float(value: object) -> float:
@@ -35,15 +37,16 @@ def _is_dataset_dir(path: str) -> bool:
 
 def _dataset_dir() -> str:
     env_path = os.getenv("DATASET_DIR")
-    if _is_dataset_dir(env_path or ""):
-        return env_path or ""
+    if env_path:
+        env_dataset_dir = str(Path(env_path).expanduser())
+        if _is_dataset_dir(env_dataset_dir):
+            return env_dataset_dir
 
-    base_path = Path(BASE_DIR).resolve()
-    repo_root = base_path.parent
+    repo_root = PROJECT_ROOT
     uhack_root = repo_root.parent
     candidates = [
-        FALLBACK_DATASET_DIR,
         str(repo_root / "Date - meciuri"),
+        str(repo_root / "data" / "Date - meciuri"),
         str(uhack_root / "Date - meciuri"),
     ]
     candidates.extend(str(path) for path in repo_root.glob("Date - meciuri*/Date - meciuri"))
@@ -52,7 +55,7 @@ def _dataset_dir() -> str:
     for candidate in candidates:
         if _is_dataset_dir(candidate):
             return candidate
-    return env_path or FALLBACK_DATASET_DIR
+    return str(repo_root / "data" / "Date - meciuri")
 
 
 def _connect_db() -> sqlite3.Connection:

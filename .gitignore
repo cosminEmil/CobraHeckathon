@@ -25,3 +25,4 @@ Thumbs.db
 uploads/
 backend/data/
 *.tmp
+backend/.env
