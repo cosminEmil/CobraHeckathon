@@ -24,14 +24,6 @@ document.querySelectorAll('.nav-item[data-page]').forEach(item => {
   item.addEventListener('click', () => navigate(item.dataset.page));
 });
 
-// ── Clock ──
-function updateClock() {
-  const now = new Date();
-  const el = document.getElementById('topbar-clock');
-  if (el) el.textContent = now.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-setInterval(updateClock, 1000);
-updateClock();
 
 window.MATCHES = [];
 window.UCJ_SQUAD = [];

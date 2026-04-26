@@ -4,10 +4,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>U Cluj Analytics – Football Intelligence Platform</title>
+  <title>Optima U – Football Intelligence Platform</title>
   <meta name="description"
     content="Platforma de analiză fotbal AI pentru Universitatea Cluj – GPS Tracker în timp real și analiză avansată a meciurilor." />
   <link rel="stylesheet" href="styles/main.css" />
+  <link rel="icon" type="image/png" href="styles/fc-universitatea-cluj-vector-logo-11574297717uidis1p0oi.png" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 
   <!-- Modal styles -->
@@ -146,17 +147,12 @@
   ══════════════════════════════════════════ -->
     <aside class="sidebar">
       <div class="sidebar-logo">
-        <div class="logo-crest">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L3 7v6c0 5.25 3.75 10.15 9 11.35C17.25 23.15 21 18.25 21 13V7L12 2z" fill="currentColor"
-              opacity="0.9" />
-            <text x="12" y="16" text-anchor="middle" font-size="9" font-weight="900" fill="#0a0e1a"
-              font-family="Rajdhani,sans-serif">U</text>
-          </svg>
+        <div class="logo-crest" style="background: transparent;">
+          <img src="styles/fc-universitatea-cluj-vector-logo-11574297717uidis1p0oi.png" alt="U Cluj" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
         <div class="logo-text">
-          <div class="club-name">U Cluj</div>
-          <div class="club-sub">Analytics AI</div>
+          <div class="club-name">Optima U</div>
+          <div class="club-sub">Intelligence AI</div>
         </div>
       </div>
 
@@ -217,15 +213,10 @@
       <!-- Topbar -->
       <div class="topbar">
         <div class="topbar-title">
-          Universitatea <span class="highlight">&nbsp;Cluj</span>
+          Optima <span class="highlight">&nbsp;U</span>
           &nbsp;· Football Intelligence
         </div>
-        <div class="topbar-right">
-          <div class="live-badge">
-            <div class="live-dot"></div>LIVE
-          </div>
-          <div class="time-display" id="topbar-clock">--:--:--</div>
-        </div>
+        <div class="topbar-right"></div>
       </div>
 
       <!-- ════════════════════════════════════
@@ -320,7 +311,7 @@
         <div class="match-header" id="analysis-match-header"></div>
 
         <div class="card ai-hero-card">
-          <div class="card-title">Insight-uri din baza de date pentru meciul selectat</div>
+          <div class="card-title">Analiză Tactică & Recomandări</div>
           <div class="alert-panel ai-hero-panel" id="ai-recommendations"></div>
         </div>
 
@@ -338,33 +329,41 @@
           <!-- Charts left col -->
           <div style="display:flex;flex-direction:column;gap:20px">
             <div class="card">
-              <div class="card-title">Top Line-Breakers (Pase în treimea adversă)</div>
+              <div class="card-title">Top Pase în Treimea Adversă</div>
               <div class="chart-wrap"><canvas id="line-breakers-chart"></canvas></div>
-            </div>
-            <div class="card">
-              <div class="card-title">Profil tactic normalizat din DB</div>
-              <div class="chart-wrap"><canvas id="radar-chart"></canvas></div>
             </div>
           </div>
         </div>
 
-        <!-- Efficiency scores table -->
-        <div class="card">
-          <div class="card-title">Indice jucători calculat din date DB (G×10 + A×8 + Pase×0.1)</div>
-          <div style="overflow-x:auto">
-            <table id="efficiency-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Jucător</th>
-                  <th style="text-align:center">Goluri</th>
-                  <th style="text-align:center">Asisturi</th>
-                  <th style="text-align:center">Pase</th>
-                  <th style="text-align:center">Indice calculat</th>
-                </tr>
-              </thead>
-              <tbody id="efficiency-table-body"></tbody>
-            </table>
+        <!-- AI Intelligence Section (Side-by-Side) -->
+        <div class="card" style="margin-bottom: 24px; border-color: var(--border-bright);">
+          <div class="card-title">Performanță & Probabilitate</div>
+          <div class="ai-intelligence-grid">
+            
+            <!-- Win Probability Column -->
+            <div class="ai-col">
+              <div class="ai-col-title">Șanse Victorie</div>
+              <div class="win-prob-container">
+                <div class="win-prob-gauge">
+                  <svg viewBox="0 0 100 50" class="gauge-svg">
+                    <path d="M 10 45 A 35 35 0 0 1 90 45" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8" stroke-linecap="round"/>
+                    <path id="gauge-fill" d="M 10 45 A 35 35 0 0 1 90 45" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
+                  </svg>
+                  <div class="gauge-value" id="ai-win-prob-val">0%</div>
+                </div>
+                <div class="win-prob-meta">
+                  <div id="ai-win-label" style="font-weight:700; font-size:16px; margin-bottom:4px">Calculând...</div>
+                  <div style="font-size:11px; color:var(--text-3)">Probabilitate estimată pe baza cursului jocului și a eficienței echipei.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tactical Profile Column (Moved from separate card) -->
+            <div class="ai-col">
+              <div class="ai-col-title">Profil Tactic</div>
+              <div class="chart-wrap" style="height: 180px;"><canvas id="radar-chart"></canvas></div>
+            </div>
+
           </div>
         </div>
       </section>

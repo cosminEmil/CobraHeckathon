@@ -42,7 +42,6 @@ async function loadMatch(matchId) {
     renderLineBreakersChart(matchId);
     renderRadarChart(match);
     renderAIRecommendations(match);
-    renderEfficiencyScores();
 }
 
 function renderMatchHeader(match) {
@@ -51,7 +50,9 @@ function renderMatchHeader(match) {
     const [ucjGoals, oppGoals] = match.score.split('-').map(Number);
     el.innerHTML = `
     <div class="team-block">
-      <div class="team-badge ucj">U</div>
+      <div class="team-badge ucj" style="background:transparent; border:none; display:flex; align-items:center; justify-content:center;">
+        <img src="styles/fc-universitatea-cluj-vector-logo-11574297717uidis1p0oi.png" alt="U Cluj" style="max-width:100%; max-height:100%; object-fit:contain;">
+      </div>
       <div class="team-name">U Cluj</div>
     </div>
     <div class="score-display">
@@ -181,8 +182,8 @@ async function renderAIRecommendations(match) {
     if (!panel) return;
 
     panel.innerHTML = `
-      <div style="color:var(--text-3); font-size:13px; text-align:center; padding: 20px;">
-        Se încarcă insight-urile din baza de date...
+      <div style="color:var(--text-3); font-size:13px; text-align:center; padding: 20px; grid-column: span 2;">
+        Se încarcă insight-urile din baza de date și analiza AI...
       </div>
     `;
 
@@ -191,13 +192,40 @@ async function renderAIRecommendations(match) {
         if (!response.ok) throw new Error('Nu s-au putut încărca insight-urile din DB');
         const data = await response.json();
 
-        panel.innerHTML = [
-            renderDbInsightCard('info', 'Puncte forte din baza de date', data.top_strengths || []),
-            renderDbInsightCard('danger', 'Puncte de risc din baza de date', data.top_weaknesses || []),
-        ].join('');
+        let html = '';
+        
+        // AI Summary Card
+        if (data.ai_summary) {
+            html += `
+            <div class="alert-item primary" style="grid-column: span 2; border-left: 4px solid #fff; background: rgba(255,255,255,0.05); margin-bottom: 8px; padding: 20px;">
+              <div class="alert-content">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#fff">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                  </svg>
+                  <strong style="font-size:14px; letter-spacing:1px; text-transform:uppercase;">Analiză Tactică Post-Meci (AI)</strong>
+                </div>
+                <p style="margin-top:0; line-height:1.6; color: #eee; font-size:15px; font-style: italic;">
+                  "${escapeHTML(data.ai_summary)}"
+                </p>
+              </div>
+            </div>`;
+        }
+
+        html += renderDbInsightCard('info', 'Puncte forte (Top 5)', data.top_strengths || []);
+        html += renderDbInsightCard('danger', 'Puncte de risc (Top 5)', data.top_weaknesses || []);
+        
+        panel.innerHTML = html;
+
+        // Update the Win Probability Gauge with the real backend AI result
+        if (data.ai_win_probability !== undefined) {
+            renderAIWinProbGauge(data.ai_win_probability);
+        }
     } catch (error) {
         panel.innerHTML = `
-        <div class="alert-item danger">
+        <div class="alert-item danger" style="grid-column: span 2;">
           <div class="alert-content"><strong>Date indisponibile</strong>Nu se pot încărca insight-urile calculate din baza de date pentru acest meci.</div>
         </div>`;
     }
@@ -231,34 +259,7 @@ function escapeHTML(value) {
         .replaceAll("'", '&#039;');
 }
 
-function renderEfficiencyScores() {
-    const tbody = document.getElementById('efficiency-table-body');
-    if (!tbody) return;
-    const sorted = [...(currentMatchPlayers || [])]
-        .map(p => ({
-            ...p,
-            eff: +(p.goals * 10 + p.assists * 8 + p.passes * 0.1).toFixed(1)
-        }))
-        .sort((a, b) => b.eff - a.eff)
-        .slice(0, 10);
-
-    tbody.innerHTML = sorted.map((p, i) => `
-    <tr style="border-bottom: 1px solid var(--border);">
-      <td style="padding:11px 8px;color:var(--text-3);width:32px">${i + 1}</td>
-      <td style="padding:11px 8px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-weight:500;font-size:13.5px">${p.name}</span>
-        </div>
-      </td>
-      <td style="padding:11px 8px;color:var(--text-2);text-align:center">${p.goals}</td>
-      <td style="padding:11px 8px;color:var(--text-2);text-align:center">${p.assists}</td>
-      <td style="padding:11px 8px;color:var(--text-2);text-align:center">${p.passes}</td>
-      <td style="padding:11px 8px;text-align:center">
-        <span style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#fff">${p.eff}</span>
-      </td>
-    </tr>
-  `).join('');
-}
+// Efficiency scores rendering removed for cleaner UI
 
 async function fetchMatchPlayers(matchId) {
     let cached = matchPlayersCache[matchId];
@@ -273,6 +274,24 @@ async function fetchMatchPlayers(matchId) {
     } catch (error) {
         return [];
     }
+}
+
+function renderAIWinProbGauge(probValue) {
+    const valEl = document.getElementById('ai-win-prob-val');
+    const labelEl = document.getElementById('ai-win-label');
+    const gaugeFill = document.getElementById('gauge-fill');
+    if (!valEl || !labelEl || !gaugeFill) return;
+
+    const prob = probValue * 100;
+
+    // Update Gauge
+    valEl.textContent = `${prob.toFixed(1)}%`;
+    labelEl.textContent = prob > 55 ? "Favoriți la Victorie" : 
+                         prob < 45 ? "Risc de Înfrângere" : "Echilibru Tactic";
+    
+    // Gauge SVG logic
+    const offset = 125.6 - (prob / 100) * 125.6;
+    gaugeFill.style.strokeDashoffset = offset;
 }
 
 function toggleMatchList() {

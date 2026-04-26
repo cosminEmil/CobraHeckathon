@@ -14,6 +14,26 @@ class MLEngine:
         self.anomaly_features = joblib.load(os.path.join(MODELS_DIR, "u_cluj_anomaly_features.pkl"))
         
         self.explainer = shap.TreeExplainer(self.winning_model)
+        
+        # DEBUG: Log features to a file so we can align them
+        try:
+            with open(os.path.join(MODELS_DIR, "debug_features.txt"), "w") as f:
+                if hasattr(self.winning_model, 'feature_names_in_'):
+                    f.write("\n".join(self.winning_model.feature_names_in_))
+                else:
+                    f.write("No feature_names_in_ found in model")
+        except:
+            pass
+
+        try:
+            with open(os.path.join(MODELS_DIR, "debug_anomaly_features.txt"), "w") as f:
+                if self.anomaly_features is not None:
+                    f.write("\n".join(map(str, self.anomaly_features)))
+                else:
+                    f.write("anomaly_features is None")
+        except:
+            pass
+            
         print("Models loaded successfully.")
 
     def analyze_match(self, stats_dict: dict):
@@ -30,26 +50,33 @@ class MLEngine:
         proba = self.winning_model.predict_proba(df)[0]
         win_prob = float(proba[1]) if len(proba) > 1 else float(proba[0])
         
-        shap_values = self.explainer.shap_values(df)
-        
-        # Explainer output shape differs between library versions.
-        if isinstance(shap_values, list):
-            class_1_shap = shap_values[1][0]
-        elif len(shap_values.shape) == 3:
-            class_1_shap = shap_values[0, :, 1]
-        else:
-            class_1_shap = shap_values[0]
+        try:
+            shap_values = self.explainer.shap_values(df)
+            
+            # Explainer output shape differs between library versions.
+            if isinstance(shap_values, list):
+                # For classification models, SHAP often returns a list [class0, class1]
+                # We want class 1 (win)
+                class_1_shap = shap_values[1][0] if len(shap_values) > 1 else shap_values[0][0]
+            elif hasattr(shap_values, "shape") and len(shap_values.shape) == 3:
+                class_1_shap = shap_values[0, :, 1]
+            else:
+                class_1_shap = shap_values[0]
 
-        feature_names = df.columns
-        impacts = list(zip(feature_names, class_1_shap))
-        
-        impacts_sorted = sorted(impacts, key=lambda x: x[1], reverse=True)
-        
-        top_strengths = [{"feature": f, "impact": float(v)} for f, v in impacts_sorted[:3] if v > 0]
-        
-        top_weaknesses_raw = sorted([x for x in impacts_sorted if x[1] < 0], key=lambda x: x[1]) 
-        top_weaknesses = [{"feature": f, "impact": float(v)} for f, v in top_weaknesses_raw[:3]]
-        
+            feature_names = df.columns
+            impacts = list(zip(feature_names, class_1_shap))
+            
+            impacts_sorted = sorted(impacts, key=lambda x: x[1], reverse=True)
+            
+            top_strengths = [{"feature": f, "impact": float(v)} for f, v in impacts_sorted[:5] if v > 0]
+            
+            top_weaknesses_raw = sorted([x for x in impacts_sorted if x[1] < 0], key=lambda x: x[1]) 
+            top_weaknesses = [{"feature": f, "impact": float(v)} for f, v in top_weaknesses_raw[:5]]
+        except Exception as e:
+            print(f"SHAP Error: {e}")
+            top_strengths = []
+            top_weaknesses = []
+            
         return win_prob, top_strengths, top_weaknesses
 
     def detect_anomalies(self, players_list: list):

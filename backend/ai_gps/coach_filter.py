@@ -168,21 +168,24 @@ JSON de intrare:
 
 def _build_fallback_coach_views(alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     variants = []
-    prefixes = {
-        "optimist": "Oportunitate",
-        "mixt": "Observație",
-        "pesimist": "Risc",
-    }
     for persona in COACH_PERSONAS:
         tone = persona["tone"]
         tone_alerts = []
         for alert in alerts:
             copied = dict(alert)
-            copied["message"] = f"{prefixes[tone]}: {copied.get('message') or 'alertă importantă'}"
+            title = copied.get("message") or copied.get("title") or "Analiză joc"
+            tech_sug = copied.get("suggestion") or "Monitorizăm situația."
+            
             if tone == "optimist":
-                copied["suggestion"] = copied.get("suggestion") or "Folosiți momentul pentru a ajusta rolul fără panică."
+                copied["message"] = f"Avem o oportunitate: {title}"
+                copied["suggestion"] = f"Putem profita de acest moment! {tech_sug}"
             elif tone == "pesimist":
-                copied["suggestion"] = copied.get("suggestion") or "Pregătiți imediat o soluție de rezervă dacă riscul crește."
+                copied["message"] = f"Risc detectat: {title}"
+                copied["suggestion"] = f"Să fim foarte atenți aici. {tech_sug}"
+            else:
+                copied["message"] = f"Observație tehnică: {title}"
+                copied["suggestion"] = tech_sug
+                
             tone_alerts.append(copied)
         variants.append({**persona, "alerts": tone_alerts})
     return variants

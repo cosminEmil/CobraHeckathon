@@ -588,30 +588,73 @@ def get_match_insights(match_id: str) -> Dict[str, List[Dict[str, object]]]:
                 "evidence": f"{int(fouls)} faulturi, {int(yellow_cards)} galbene, {int(red_cards)} roșii",
             })
 
-    top_strengths = sorted(strengths, key=lambda item: float(item["impact"]), reverse=True)[:3]
-    top_weaknesses = sorted(weaknesses, key=lambda item: float(item["impact"]), reverse=True)[:3]
+    top_strengths = sorted(strengths, key=lambda item: float(item["impact"]), reverse=True)[:5]
+    top_weaknesses = sorted(weaknesses, key=lambda item: float(item["impact"]), reverse=True)[:5]
     return {"top_strengths": top_strengths, "top_weaknesses": top_weaknesses}
 
 
 def get_match_stats_for_model(match_id: str) -> Optional[Dict[str, float]]:
     conn = _connect_db()
+    # Aggregate all player stats for U Cluj in this match
     row = conn.execute(
         """
-        SELECT passes, pass_acc, shots, shots_ot
-        FROM matches
-        WHERE id = ?
+        SELECT 
+            SUM(goals) as total_goals,
+            SUM(assists) as total_assists,
+            SUM(passes) as total_passes,
+            SUM(successful_passes) as total_successfulPasses,
+            SUM(duels) as total_duels,
+            SUM(duels_won) as total_duels_won,
+            SUM(dangerous_own_half_losses) as total_dangerous_losses,
+            SUM(losses) as total_losses,
+            SUM(fouls) as total_fouls,
+            SUM(yellow_cards) as total_yellow_cards,
+            SUM(red_cards) as total_red_cards,
+            SUM(shots) as total_shots,
+            SUM(shots_on_target) as total_shots_ot,
+            SUM(passes_final_third) as total_passes_f3,
+            COUNT(player_id) as player_count
+        FROM player_match_stats
+        WHERE match_id = ? AND is_ucluj_player = 1
         """,
         (match_id,),
     ).fetchone()
     conn.close()
-    if not row:
+
+    if not row or row["player_count"] == 0:
         return None
-    return {
-        "total_passes": _safe_float(row["passes"]),
-        "percent_passAcc": _safe_float(row["pass_acc"]),
-        "total_shots": _safe_float(row["shots"]),
-        "total_shotsOnTarget": _safe_float(row["shots_ot"]),
+
+    p_count = float(row["player_count"])
+    
+    # Map to the features expected by the model
+    stats = {
+        "total_goals": _safe_float(row["total_goals"]),
+        "total_assists": _safe_float(row["total_assists"]),
+        "total_shots": _safe_float(row["total_shots"]),
+        "total_shotsOnTarget": _safe_float(row["total_shots_ot"]),
+        "total_passes": _safe_float(row["total_passes"]),
+        "total_successfulPasses": _safe_float(row["total_successfulPasses"]),
+        "total_duels": _safe_float(row["total_duels"]),
+        "total_duelsWon": _safe_float(row["total_duels_won"]),
+        "total_fouls": _safe_float(row["total_fouls"]),
+        "total_yellowCards": _safe_float(row["total_yellow_cards"]),
+        "total_redCards": _safe_float(row["total_red_cards"]),
+        "total_losses": _safe_float(row["total_losses"]),
+        "total_dangerousOwnHalfLosses": _safe_float(row["total_dangerous_losses"]),
+        "total_passesToFinalThird": _safe_float(row["total_passes_f3"]),
+        
+        # Averages
+        "avg_goals": _safe_float(row["total_goals"]) / p_count,
+        "avg_shots": _safe_float(row["total_shots"]) / p_count,
+        "avg_passes": _safe_float(row["total_passes"]) / p_count,
+        "avg_duels": _safe_float(row["total_duels"]) / p_count,
+        
+        # Percentages
+        "percent_shotsOnTarget": (_safe_float(row["total_shots_ot"]) / max(1, _safe_float(row["total_shots"]))) * 100,
+        "percent_successfulPasses": (_safe_float(row["total_successfulPasses"]) / max(1, _safe_float(row["total_passes"]))) * 100,
+        "percent_duelsWon": (_safe_float(row["total_duels_won"]) / max(1, _safe_float(row["total_duels"]))) * 100,
     }
+    return stats
 
 
 def get_match_player_stats(match_id: str) -> List[Dict[str, object]]:
@@ -619,7 +662,9 @@ def get_match_player_stats(match_id: str) -> List[Dict[str, object]]:
     rows = conn.execute(
         """
         SELECT p.player_id, p.name, p.pos,
-               s.goals, s.assists, s.passes, s.passes_final_third, s.minutes_on_field
+               s.goals, s.assists, s.passes, s.successful_passes, s.duels, s.duels_won,
+               s.dangerous_own_half_losses, s.losses, s.fouls, s.yellow_cards, s.red_cards,
+               s.shots, s.shots_on_target, s.passes_final_third, s.minutes_on_field
         FROM player_match_stats s
         JOIN players p ON p.player_id = s.player_id
         WHERE s.match_id = ? AND s.is_ucluj_player = 1
@@ -633,11 +678,21 @@ def get_match_player_stats(match_id: str) -> List[Dict[str, object]]:
             "player_id": int(row["player_id"]),
             "name": row["name"],
             "pos": row["pos"],
-            "goals": round(_safe_float(row["goals"]), 3),
-            "assists": round(_safe_float(row["assists"]), 3),
-            "passes": round(_safe_float(row["passes"]), 3),
-            "passes_final_third": round(_safe_float(row["passes_final_third"]), 3),
-            "minutes_on_field": round(_safe_float(row["minutes_on_field"]), 3),
+            "goals": _safe_float(row["goals"]),
+            "assists": _safe_float(row["assists"]),
+            "passes": _safe_float(row["passes"]),
+            "successful_passes": _safe_float(row["successful_passes"]),
+            "duels": _safe_float(row["duels"]),
+            "duels_won": _safe_float(row["duels_won"]),
+            "dangerous_own_half_losses": _safe_float(row["dangerous_own_half_losses"]),
+            "losses": _safe_float(row["losses"]),
+            "fouls": _safe_float(row["fouls"]),
+            "yellow_cards": _safe_float(row["yellow_cards"]),
+            "red_cards": _safe_float(row["red_cards"]),
+            "shots": _safe_float(row["shots"]),
+            "shots_on_target": _safe_float(row["shots_on_target"]),
+            "passes_final_third": _safe_float(row["passes_final_third"]),
+            "minutes_on_field": _safe_float(row["minutes_on_field"]),
         }
         for row in rows
     ]

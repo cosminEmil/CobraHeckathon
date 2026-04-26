@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 try:
     from .schemas import MatchStatsInput, AnomalyInput, DiagnosticResponse, AnomalyResponse
     from .ml_engine import get_ml_engine
-    from .llm_coach import generate_tactical_advice
+    from .llm_coach import generate_tactical_advice, generate_match_summary
     from .data_service import (
         get_match_insights as load_match_insights,
         get_match_player_stats,
@@ -29,7 +29,7 @@ try:
 except ImportError:
     from schemas import MatchStatsInput, AnomalyInput, DiagnosticResponse, AnomalyResponse
     from ml_engine import get_ml_engine
-    from llm_coach import generate_tactical_advice
+    from llm_coach import generate_tactical_advice, generate_match_summary
     from data_service import (
         get_match_insights as load_match_insights,
         get_match_player_stats,
@@ -88,9 +88,24 @@ def run_diagnostics(input_data: MatchStatsInput):
 def find_anomalies(input_data: AnomalyInput):
     engine = get_ml_engine()
     try:
-        results = engine.detect_anomalies(input_data.players)
+        # Map incoming stats to the names expected by the model (total_ prefix)
+        mapped_players = []
+        for p in input_data.players:
+            mapped_p = {}
+            for key, value in p.items():
+                if key == "playerId":
+                    mapped_p[key] = value
+                    continue
+                # Map 'goals' to 'total_goals', etc.
+                mapped_p[f"total_{key}"] = value
+                # Also keep the original just in case
+                mapped_p[key] = value
+            mapped_players.append(mapped_p)
+            
+        results = engine.detect_anomalies(mapped_players)
         return AnomalyResponse(anomalies=results)
     except Exception as e:
+        print(f"Anomaly Detection Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -132,7 +147,34 @@ def list_match_players(match_id: str):
 @app.get("/api/v1/matches/{match_id}/insights")
 def match_insights(match_id: str):
     try:
-        return load_match_insights(match_id)
+        insights = load_match_insights(match_id)
+        
+        # 1. Add AI Summary (Gemini)
+        if insights.get("top_strengths") or insights.get("top_weaknesses"):
+            insights["ai_summary"] = generate_match_summary(
+                insights["top_strengths"], 
+                insights["top_weaknesses"]
+            )
+            
+        # 2. Add AI Win Probability (Random Forest)
+        try:
+            # Use absolute import to avoid issues with uvicorn reload
+            try:
+                from data_service import get_match_stats_for_model
+            except ImportError:
+                from .data_service import get_match_stats_for_model
+                
+            ai_stats = get_match_stats_for_model(match_id)
+            if ai_stats:
+                engine = get_ml_engine()
+                win_prob, _, _ = engine.analyze_match(ai_stats)
+                insights["ai_win_probability"] = win_prob
+        except Exception as ai_err:
+            print(f"AI Prediction Error: {ai_err}")
+            # Don't fail the whole request if AI fails
+            insights["ai_win_probability"] = 0.5 
+            
+        return insights
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
